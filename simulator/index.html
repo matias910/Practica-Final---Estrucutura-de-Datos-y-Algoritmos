@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DialSort Sovereign × Cerebras-Style Spatial Simulator</title>
+  <title>DialSort vs TieredSort — Side-by-Side Simulator</title>
   <style>
     :root {
       --bg: #040914;
@@ -25,21 +25,23 @@
       --tileOwner: #133f33;
       --scan: #88f0b2;
       --inject: #57a8ff;
+      --tiered1: #ff9f57;
+      --tiered2: #ff6de1;
       --shadow: 0 24px 80px rgba(0,0,0,.45);
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: 'Courier New', ui-monospace, monospace;
       color: var(--text);
       background:
-        radial-gradient(circle at 20% 0%, #102042 0%, transparent 36%),
-        radial-gradient(circle at 100% 20%, #0b1732 0%, transparent 30%),
-        linear-gradient(180deg, #030711 0%, var(--bg) 100%);
+              radial-gradient(circle at 20% 0%, #102042 0%, transparent 36%),
+              radial-gradient(circle at 100% 20%, #0b1732 0%, transparent 30%),
+              linear-gradient(180deg, #030711 0%, var(--bg) 100%);
       padding: 16px;
+      min-height: 100vh;
     }
     .wrap {
-      max-width: 1560px;
+      max-width: 1800px;
       margin: 0 auto;
       border: 1px solid #10203a;
       border-radius: 28px;
@@ -47,722 +49,744 @@
       box-shadow: var(--shadow);
       padding: 16px;
     }
-    .topbar, .panel {
+    .topbar {
       background: rgba(6,10,20,.76);
       border: 1px solid #122543;
       border-radius: 22px;
-    }
-    .topbar {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
-      padding: 12px;
+      padding: 12px 16px;
       margin-bottom: 14px;
     }
-    button, input, textarea, select {
-      border-radius: 16px;
+    .title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #dceaff;
+      letter-spacing: .04em;
+      flex: 1;
+    }
+    .title span { color: var(--gold); }
+    button, input, select {
+      border-radius: 12px;
       border: 1px solid #254267;
       background: #12203a;
       color: var(--text);
-      padding: 10px 14px;
-      font-size: 14px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: .15s ease;
     }
-    button { cursor: pointer; transition: .18s ease; }
-    button:hover { transform: translateY(-1px); background: #183158; }
-    button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-    input[type="number"] { width: 92px; }
-    textarea {
-      min-height: 80px;
-      width: 100%;
-      resize: vertical;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
+    button:hover { background: #183158; transform: translateY(-1px); }
+    button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    input[type="number"] { width: 80px; }
+    input[type="text"] { width: 340px; }
     .pill {
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-radius: 999px;
       background: #10203b;
       border: 1px solid #214167;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
     }
-    .grid {
+    .input-row {
+      background: rgba(6,10,20,.76);
+      border: 1px solid #122543;
+      border-radius: 18px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #9db8de;
+      margin-bottom: 6px;
+    }
+    .sim-grid {
       display: grid;
-      grid-template-columns: 1.45fr .9fr;
+      grid-template-columns: 1fr 1fr;
       gap: 14px;
     }
-    @media (max-width: 1160px) {
-      .grid { grid-template-columns: 1fr; }
+    @media (max-width: 1100px) { .sim-grid { grid-template-columns: 1fr; } }
+    .sim-panel {
+      background: rgba(6,10,20,.76);
+      border: 1px solid #122543;
+      border-radius: 22px;
+      padding: 14px;
     }
-    .panel { padding: 14px; }
-    .stack { display: grid; gap: 14px; }
-    .label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: #9db8de;
-      margin-bottom: 8px;
+    .sim-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1a3255;
     }
-    .small {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
+    .dial-title { color: var(--green); }
+    .tiered-title { color: var(--tiered1); }
+    svg { width: 100%; height: auto; display: block; border-radius: 16px; background: #06101d; border: 1px solid #1b3557; }
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
     }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .status { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
     .badge {
-      padding: 7px 10px;
+      padding: 5px 10px;
       border-radius: 999px;
       font-size: 12px;
       border: 1px solid #2b4a74;
       background: #112240;
       color: #d3e2ff;
     }
-    .kv {
-      display:grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap:10px;
+    .phase-explain {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      background: #091422;
+      border: 1px solid #1a3255;
+      border-radius: 12px;
+      padding: 10px 14px;
+      min-height: 48px;
     }
-    .card {
-      background: linear-gradient(180deg, #0b1528, #08111f);
-      border: 1px solid #172d4f;
-      border-radius: 18px;
-      padding: 12px;
-    }
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      color: #d9e8ff;
-      word-break: break-word;
-    }
-    .outbox {
-      font-size: 15px;
-      color: #fff3ca;
+    .out-display {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--gold);
       font-weight: 700;
-    }
-    svg {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 22px;
-      background: linear-gradient(180deg, #06101d 0%, #030812 100%);
-      border: 1px solid #1b3557;
-    }
-    .slider {
-      width: 100%;
-      accent-color: var(--blue);
+      background: #0a1523;
+      border: 1px solid #1a3255;
+      border-radius: 10px;
+      padding: 8px 12px;
+      min-height: 32px;
+      word-break: break-all;
     }
     .legend {
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin-top:10px;
-      color:var(--muted);
-      font-size:12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
     }
-    .legend .item { display:flex; gap:6px; align-items:center; }
-    .dot { width:11px; height:11px; border-radius:50%; }
+    .legend .item { display: flex; gap: 5px; align-items: center; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .signature {
-      text-align:center;
-      margin-top:10px;
-      font-size:13px;
-      color:#8ca7cf;
+      text-align: center;
+      margin-top: 14px;
+      font-size: 12px;
+      color: #8ca7cf;
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <input id="maxVal" type="number" min="3" max="63" value="15" title="maximum universe" />
-      <input id="rows" type="number" min="2" max="12" value="4" title="PE rows" />
-      <input id="cols" type="number" min="2" max="16" value="8" title="PE columns" />
-      <button id="btnApplyInput">Apply vector</button>
-      <button id="btnRandom">Random vector</button>
-      <button id="btnInject">1) Spatial ingest</button>
-      <button id="btnReduce">2) Local accumulation</button>
-      <button id="btnScan">3) Distributed scan</button>
-      <button id="btnAuto">▶ Auto</button>
-      <button id="btnReset">Reset</button>
-      <div class="pill">many-core mode: key → owner tile → local count → ordered scan</div>
-    </div>
+<div class="wrap">
 
-    <div class="panel" style="margin-bottom:14px;">
+  <div class="topbar">
+    <div class="title">DIALSORT <span>vs</span> TIEREDSORT — Side-by-Side Simulator</div>
+    <div class="pill">ST0245 · EAFIT University</div>
+  </div>
+
+  <div class="input-row">
+    <div>
       <div class="label">Input vector</div>
-      <textarea id="vectorInput">9,3,12,1,7,4,14,2,12,3,0,15,7,7,1,10</textarea>
-      <div class="small" style="margin-top:8px;">
-        This version reinterprets DialSort as a spatial accelerator inspired by Cerebras: each PE owns a key range, inputs travel toward their owner tile, duplicates accumulate locally, and order emerges from a scan of the universe, not from comparisons.
+      <input type="text" id="vecInput" value="9,3,12,1,7,4,14,2,12,3,0,15,7,7,1,10" />
+    </div>
+    <div>
+      <div class="label">Max value (U-1)</div>
+      <input type="number" id="maxVal" min="3" max="63" value="15" />
+    </div>
+    <button id="btnApply">Apply</button>
+    <button id="btnRandom">Random</button>
+    <button id="btnStep">▶ Step</button>
+    <button id="btnAuto">▶▶ Auto</button>
+    <button id="btnReset">Reset</button>
+    <div class="pill" id="stepLabel">Phase: idle</div>
+  </div>
+
+  <div class="sim-grid">
+    <!-- DialSort panel -->
+    <div class="sim-panel">
+      <div class="sim-title dial-title">⬡ DIALSORT — Flat Histogram O(U)</div>
+      <svg id="dialSvg" viewBox="0 0 720 480"></svg>
+      <div class="status-row">
+        <div class="badge">phase: <span id="dPhase">idle</span></div>
+        <div class="badge">scan k: <span id="dScan">—</span></div>
+        <div class="badge">U: <span id="dU">16</span></div>
+      </div>
+      <div class="phase-explain" id="dExplain">
+        DialSort builds one flat histogram H[0..U-1]. Each key k increments H[k]. Then a single scan from 0 to U emits each value H[k] times. No comparisons, no prefix-sum.
+      </div>
+      <div class="label" style="margin-top:8px;">Sorted output</div>
+      <div class="out-display" id="dOut">—</div>
+      <div class="legend">
+        <div class="item"><span class="dot" style="background:#57a8ff"></span>key packet</div>
+        <div class="item"><span class="dot" style="background:#6bf5b0"></span>active bucket</div>
+        <div class="item"><span class="dot" style="background:#ffc857"></span>histogram count</div>
+        <div class="item"><span class="dot" style="background:#88f0b2"></span>scan wavefront</div>
       </div>
     </div>
 
-    <div class="grid">
-      <div class="stack">
-        <div class="panel">
-          <div class="label">Wafer-scale spatial view</div>
-          <svg id="viz" viewBox="0 0 1500 920" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="legend">
-            <div class="item"><span class="dot" style="background:#57a8ff"></span> injected packet</div>
-            <div class="item"><span class="dot" style="background:#6bf5b0"></span> active owner tile</div>
-            <div class="item"><span class="dot" style="background:#ffc857"></span> active cell/counter</div>
-            <div class="item"><span class="dot" style="background:#88f0b2"></span> scan wavefront</div>
-            <div class="item"><span class="dot" style="background:#b597ff"></span> tile sovereign range</div>
-          </div>
-        </div>
+    <!-- TieredSort panel -->
+    <div class="sim-panel">
+      <div class="sim-title tiered-title">⬡ TIEREDSORT — Two-Level O(√U) cache footprint</div>
+      <svg id="tieredSvg" viewBox="0 0 720 480"></svg>
+      <div class="status-row">
+        <div class="badge">phase: <span id="tPhase">idle</span></div>
+        <div class="badge">tier: <span id="tTier">—</span></div>
+        <div class="badge">K tiers: <span id="tK">—</span></div>
+        <div class="badge">U: <span id="tU">16</span></div>
       </div>
-
-      <div class="stack">
-        <div class="panel">
-          <div class="label">Exploration controls</div>
-          <input id="scanSlider" class="slider" type="range" min="0" max="15" step="1" value="0" />
-          <div class="status">
-            <div class="badge">fase: <span id="phaseTxt">idle</span></div>
-            <div class="badge">scan k: <span id="scanTxt">0</span></div>
-            <div class="badge">PEs: <span id="peTxt">32</span></div>
-            <div class="badge">keys: <span id="nTxt">0</span></div>
-            <div class="badge">duplicates: <span id="dupTxt">0</span></div>
-            <div class="badge">approx. hops: <span id="hopTxt">0</span></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="label">Signals and metrics</div>
-          <div class="kv">
-            <div class="card">
-              <div class="small">Ownership map</div>
-              <div id="ownerText" class="mono"></div>
-            </div>
-            <div class="card">
-              <div class="small">Histograma H[k]</div>
-              <div id="histText" class="mono"></div>
-            </div>
-            <div class="card">
-              <div class="small">Tile load</div>
-              <div id="loadText" class="mono"></div>
-            </div>
-            <div class="card">
-              <div class="small">Sorted output</div>
-              <div id="outText" class="outbox mono"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="label">Technical reading</div>
-          <div class="small" id="explainText">
-            Waiting. First inject the keys across the mesh; then accumulate; finally scan the universe 0..U to reveal the order.
-          </div>
-        </div>
+      <div class="phase-explain" id="tExplain">
+        TieredSort splits the universe into K=√U coarse tiers. Pass 1 scatters each key into its tier bucket. Pass 2 builds a small local histogram inside each tier and emits values in order. Active working set: O(√U) per pass.
+      </div>
+      <div class="label" style="margin-top:8px;">Sorted output</div>
+      <div class="out-display" id="tOut">—</div>
+      <div class="legend">
+        <div class="item"><span class="dot" style="background:#ff9f57"></span>coarse tier</div>
+        <div class="item"><span class="dot" style="background:#ff6de1"></span>active fine bucket</div>
+        <div class="item"><span class="dot" style="background:#ffc857"></span>local count</div>
+        <div class="item"><span class="dot" style="background:#88f0b2"></span>emit wavefront</div>
       </div>
     </div>
   </div>
 
-  <div class="signature">DialSort Cerebras-Style Spatial Simulator — by Alexander Narváez - anarvae1@eafit.edu.co</div>
+  <div class="signature">
+    DialSort vs TieredSort Simulator — ST0245 Data Structures &amp; Algorithms · EAFIT University
+  </div>
+</div>
 
-  <script>
-    const state = {
-      maxVal: 15,
-      rows: 4,
-      cols: 8,
-      values: [9,3,12,1,7,4,14,2,12,3,0,15,7,7,1,10],
-      phase: 'idle',
-      scanLevel: 0,
-      injected: false,
-      reduced: false,
-      packets: [],
-      ownerHits: [],
-      tileLoads: [],
-      hist: [],
-      emitted: [],
-      scanTimer: null,
-      injectTimer: null,
-      reduceTimer: null,
-      animProgress: 0
-    };
+<script>
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  SHARED STATE
+  // ─────────────────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
 
-    const $ = (id) => document.getElementById(id);
-    const svg = $('viz');
+  const PHASES_DIAL   = ['idle','inject','histogram','scan','done'];
+  const PHASES_TIERED = ['idle','scatter','fine','emit','done'];
 
-    function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  let state = {
+    values: [9,3,12,1,7,4,14,2,12,3,0,15,7,7,1,10],
+    maxVal: 15,
+    // dial
+    dPhaseIdx: 0,
+    dScanK: 0,
+    dHist: [],
+    dAnimPkt: 0,
+    // tiered
+    tPhaseIdx: 0,
+    tActiveTier: 0,
+    tActiveBucket: 0,
+    tK: 4,
+    tTierWidth: 4,
+    tBuckets: [],
+    tLocalHist: [],
+    tEmitTier: 0,
+    tEmitBucket: 0,
+    tOutput: [],
+    // auto
+    autoTimer: null,
+  };
 
-    function parseInput(text) {
-      return text.split(/[,\s]+/)
-        .map(s => s.trim())
-        .filter(Boolean)
-        .map(Number)
-        .filter(n => Number.isFinite(n) && n >= 0)
-        .map(n => clamp(Math.floor(n), 0, state.maxVal));
+  function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
+
+  function parseVec(txt){
+    return txt.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean)
+            .map(Number).filter(n=>Number.isFinite(n)&&n>=0)
+            .map(n=>clamp(Math.floor(n),0,state.maxVal));
+  }
+
+  function randomVec(){
+    const len = 16;
+    return Array.from({length:len},()=>Math.floor(Math.random()*(state.maxVal+1)));
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  INIT
+  // ─────────────────────────────────────────────────────────────────────────────
+  function initState(){
+    const U = state.maxVal + 1;
+    // dial
+    state.dPhaseIdx = 0;
+    state.dScanK = 0;
+    state.dHist = Array(U).fill(0);
+    state.dAnimPkt = 0;
+    // tiered
+    state.tPhaseIdx = 0;
+    state.tK = Math.max(2, Math.min(8, Math.ceil(Math.sqrt(U))));
+    state.tTierWidth = Math.ceil(U / state.tK);
+    state.tBuckets = Array.from({length:state.tK},()=>[]);
+    state.tLocalHist = [];
+    state.tActiveTier = 0;
+    state.tActiveBucket = 0;
+    state.tEmitTier = 0;
+    state.tEmitBucket = 0;
+    state.tOutput = [];
+    renderAll();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  STEP LOGIC
+  // ─────────────────────────────────────────────────────────────────────────────
+  function stepDial(){
+    const ph = state.dPhaseIdx;
+    const U = state.maxVal + 1;
+    if(ph === 0){ // idle → inject (show packets)
+      state.dAnimPkt = 0;
+      state.dPhaseIdx = 1;
+    } else if(ph === 1){ // inject → build histogram
+      state.dHist = Array(U).fill(0);
+      state.values.forEach(v => state.dHist[v]++);
+      state.dPhaseIdx = 2;
+    } else if(ph === 2){ // histogram → scan
+      state.dScanK = 0;
+      state.dPhaseIdx = 3;
+    } else if(ph === 3){ // scan step
+      state.dScanK++;
+      if(state.dScanK >= U) state.dPhaseIdx = 4;
+    }
+    // done stays done
+  }
+
+  function stepTiered(){
+    const ph = state.tPhaseIdx;
+    if(ph === 0){ // idle → scatter
+      state.tBuckets = Array.from({length:state.tK},()=>[]);
+      state.values.forEach(v=>{
+        const offset = v - 0; // mn=0 for display
+        const tier = Math.min(state.tK-1, Math.floor(offset / state.tTierWidth));
+        state.tBuckets[tier].push(v);
+      });
+      state.tActiveTier = 0;
+      state.tPhaseIdx = 1;
+    } else if(ph === 1){ // scatter done → fine histogram pass
+      state.tLocalHist = Array(state.tTierWidth).fill(0);
+      const tier = state.tActiveTier;
+      if(tier < state.tK){
+        state.tBuckets[tier].forEach(v=>{
+          const local = v - tier * state.tTierWidth;
+          if(local >= 0 && local < state.tTierWidth) state.tLocalHist[local]++;
+        });
+        state.tActiveBucket = 0;
+        state.tPhaseIdx = 2;
+      } else {
+        state.tPhaseIdx = 4;
+      }
+    } else if(ph === 2){ // fine histogram → emit from this tier
+      // emit all from this tier
+      const tier = state.tActiveTier;
+      const base = tier * state.tTierWidth;
+      for(let j=0; j<state.tTierWidth; j++){
+        const val = base + j;
+        if(val > state.maxVal) break;
+        for(let c=0; c<state.tLocalHist[j]; c++) state.tOutput.push(val);
+      }
+      state.tActiveTier++;
+      state.tPhaseIdx = 3;
+    } else if(ph === 3){ // next tier or done
+      if(state.tActiveTier < state.tK){
+        state.tLocalHist = Array(state.tTierWidth).fill(0);
+        const tier = state.tActiveTier;
+        state.tBuckets[tier].forEach(v=>{
+          const local = v - tier * state.tTierWidth;
+          if(local >= 0 && local < state.tTierWidth) state.tLocalHist[local]++;
+        });
+        state.tActiveBucket = 0;
+        state.tPhaseIdx = 2;
+      } else {
+        state.tPhaseIdx = 4;
+      }
+    }
+  }
+
+  function step(){
+    if(state.dPhaseIdx < 4) stepDial();
+    if(state.tPhaseIdx < 4) stepTiered();
+    renderAll();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  SVG HELPERS
+  // ─────────────────────────────────────────────────────────────────────────────
+  function rect(x,y,w,h,fill,stroke='none',rx=8,sw=1){
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  }
+  function txt(x,y,s,sz=12,fill='#e6f0ff',weight=600,anchor='middle'){
+    return `<text x="${x}" y="${y}" fill="${fill}" font-size="${sz}" font-weight="${weight}" text-anchor="${anchor}" font-family="'Courier New',monospace">${s}</text>`;
+  }
+  function line(x1,y1,x2,y2,stroke='#28476f',width=1.5,dash=''){
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${width}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  }
+  function circle(x,y,r,fill,stroke='none',sw=1){
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  RENDER DIALSORT
+  // ─────────────────────────────────────────────────────────────────────────────
+  function renderDial(){
+    const W=720, H=480;
+    const parts=[];
+    const U = state.maxVal + 1;
+    const ph = state.dPhaseIdx;
+    const vals = state.values;
+    const n = vals.length;
+
+    // background
+    parts.push(rect(0,0,W,H,'#06101d','none',0));
+    parts.push(txt(W/2, 22, 'DIALSORT — FLAT HISTOGRAM', 13, '#9cb6dc', 700));
+
+    // ── Input lane (top) ──────────────────────────────────────────────────────
+    const laneY = 36;
+    const pktW = Math.min(52, (W-60) / Math.max(1,n));
+    const pktGap = 4;
+    const laneTotal = pktW * n + pktGap * (n-1);
+    const laneX0 = (W - laneTotal) / 2;
+
+    vals.forEach((v,i)=>{
+      const x = laneX0 + i*(pktW+pktGap);
+      const active = ph >= 1;
+      parts.push(rect(x, laneY, pktW, 32, active?'#10203b':'#0b1628', active?'#294972':'#1a3050', 8, 1.2));
+      parts.push(txt(x+pktW/2, laneY+21, String(v), 13, active?'#e7f1ff':'#6a88b0', 700));
+    });
+    parts.push(txt(10, laneY+18, 'IN', 11, '#6a88b0', 700, 'start'));
+
+    // ── Histogram buckets ────────────────────────────────────────────────────
+    const histY = 90;
+    const histH = 260;
+    const bW = Math.min(44, (W-60)/Math.max(1,U));
+    const bGap = Math.max(1, (W-60 - bW*U) / Math.max(1,U-1));
+    const bX0 = (W - (bW*U + bGap*(U-1)))/2;
+    const maxCount = Math.max(1, ...state.dHist);
+
+    for(let k=0; k<U; k++){
+      const x = bX0 + k*(bW+bGap);
+      const count = state.dHist[k];
+      const isScan = ph === 3 && k === state.dScanK;
+      const isDone = ph === 4;
+      const barH = count > 0 ? Math.max(8, (count/maxCount)*(histH-40)) : 0;
+      const barY = histY + histH - 30 - barH;
+
+      // bucket bg
+      const bFill = isScan ? '#1a4a35' : (count>0 ? '#10203b' : '#080f1e');
+      const bStroke = isScan ? '#6bf5b0' : (count>0 ? '#2a5080' : '#142035');
+      parts.push(rect(x, histY, bW, histH-24, bFill, bStroke, 6, 1.3));
+
+      // bar fill
+      if(barH > 0){
+        const barColor = isScan ? '#6bf5b0' : (isDone ? '#57a8ff' : '#ffc857');
+        parts.push(rect(x+2, barY, bW-4, barH, barColor, 'none', 4));
+      }
+
+      // k label
+      parts.push(txt(x+bW/2, histY+histH-10, String(k), 10, isScan?'#6bf5b0':'#5a7aa0', 700));
+
+      // count label
+      if(count>0 || isScan){
+        parts.push(txt(x+bW/2, barY-4, String(count), 10, isScan?'#fff':'#ffc857', 700));
+      }
+
+      // scan wavefront arrow
+      if(isScan){
+        parts.push(line(x+bW/2, histY-16, x+bW/2, histY, '#88f0b2', 2, '3 3'));
+        parts.push(circle(x+bW/2, histY-20, 6, '#88f0b2'));
+      }
     }
 
-    function randomVector(len = 16) {
-      return Array.from({ length: len }, () => Math.floor(Math.random() * (state.maxVal + 1)));
-    }
+    // histogram label
+    parts.push(txt(10, histY+14, 'H[k]', 11, '#6a88b0', 700, 'start'));
+    parts.push(line(bX0-8, histY, bX0-8, histY+histH-24, '#1e365b', 1.5));
+    parts.push(line(bX0-8, histY+histH-24, bX0+bW*U+bGap*(U-1)+8, histY+histH-24, '#1e365b', 1.5));
 
-    function stopTimers() {
-      ['scanTimer','injectTimer','reduceTimer'].forEach(k => {
-        if (state[k]) clearInterval(state[k]);
-        state[k] = null;
+    // ── Packets flying (inject phase) ────────────────────────────────────────
+    if(ph === 1){
+      vals.forEach((v,i)=>{
+        const srcX = laneX0 + i*(pktW+pktGap) + pktW/2;
+        const srcY = laneY + 32;
+        const dstX = bX0 + v*(bW+bGap) + bW/2;
+        const dstY = histY + 20;
+        parts.push(line(srcX, srcY, dstX, dstY, '#57a8ff', 1.2, '4 5'));
+        parts.push(circle(dstX, dstY, 7, '#57a8ff', '#d8eeff', 1.5));
+        parts.push(txt(dstX, dstY+4, String(v), 9, '#06101d', 800));
       });
     }
 
-    function numPE() { return state.rows * state.cols; }
-
-    function tileRanges() {
-      const total = numPE();
-      const U = state.maxVal + 1;
-      const base = Math.floor(U / total);
-      const extra = U % total;
-      let start = 0;
-      const ranges = [];
-      for (let t = 0; t < total; t++) {
-        const size = base + (t < extra ? 1 : 0);
-        const end = size > 0 ? start + size - 1 : start - 1;
-        ranges.push({ tile: t, start, end, size });
-        start = end + 1;
+    // ── Output row (scan/done) ───────────────────────────────────────────────
+    const outY = histY + histH + 10;
+    parts.push(txt(10, outY+18, 'OUT', 11, '#6a88b0', 700, 'start'));
+    if(ph >= 3){
+      const out=[];
+      for(let k=0; k<=(ph===3?state.dScanK:state.maxVal); k++){
+        for(let c=0; c<state.dHist[k]; c++) out.push(k);
       }
-      return ranges;
-    }
-
-    function ownerOfKey(k) {
-      const ranges = tileRanges();
-      for (const r of ranges) {
-        if (r.size > 0 && k >= r.start && k <= r.end) return r.tile;
-      }
-      return 0;
-    }
-
-    function tileRow(tile) { return Math.floor(tile / state.cols); }
-    function tileCol(tile) { return tile % state.cols; }
-
-    function computeState() {
-      const total = numPE();
-      state.tileLoads = Array(total).fill(0);
-      state.ownerHits = Array(total).fill(null).map(() => []);
-      state.hist = Array(state.maxVal + 1).fill(0);
-      let hopSum = 0;
-
-      state.values.forEach((v, i) => {
-        const owner = ownerOfKey(v);
-        const srcCol = i % state.cols;
-        const srcRow = 0;
-        const dstCol = tileCol(owner);
-        const dstRow = tileRow(owner);
-        const hops = Math.abs(srcCol - dstCol) + Math.abs(srcRow - dstRow);
-        hopSum += hops;
-        state.tileLoads[owner]++;
-        state.ownerHits[owner].push({ value: v, idx: i, hops });
-        state.hist[v]++;
+      const oW = Math.min(40, (W-80)/Math.max(1,out.length));
+      const oGap=3;
+      const oTotal = oW*out.length + oGap*(out.length-1);
+      const oX0 = (W-oTotal)/2;
+      out.forEach((v,i)=>{
+        const x = oX0 + i*(oW+oGap);
+        parts.push(rect(x, outY, oW, 28, '#0d2a1a', '#3a7a5a', 6, 1.2));
+        parts.push(txt(x+oW/2, outY+19, String(v), 11, '#6bf5b0', 700));
       });
-
-      state.hopSum = hopSum;
-      state.emitted = [];
-      state.packets = state.values.map((v, i) => ({
-        value: v,
-        owner: ownerOfKey(v),
-        idx: i,
-        progress: 0
-      }));
     }
 
-    function duplicateCount() {
-      return state.hist.reduce((a, c) => a + Math.max(0, c - 1), 0);
+    // phase label
+    const phNames = ['idle','injecting keys','building H[k]','scanning universe','complete'];
+    parts.push(rect(W/2-90, H-28, 180, 22, '#091422', '#1a3255', 8, 1));
+    parts.push(txt(W/2, H-13, phNames[ph] || 'idle', 12, '#9cb6dc', 700));
+
+    $('dialSvg').innerHTML = parts.join('');
+
+    // panels
+    $('dPhase').textContent = phNames[ph];
+    $('dScan').textContent = ph>=3 ? state.dScanK : '—';
+    $('dU').textContent = U;
+    const explains = [
+      'Waiting. DialSort assigns each key to a bucket by its value — no comparisons needed.',
+      'Injecting: each key k flies directly to bucket H[k]. Manhattan routing, no sorting.',
+      'Histogram built: H[k] = count of key k in the input. The sorted order is implicit in H.',
+      `Scanning universe k=0..${state.maxVal}. Emit k exactly H[k] times. Wavefront moves →`,
+      'Complete. Sorted order emerged from addressable space alone. O(n+U), zero comparisons.'
+    ];
+    $('dExplain').textContent = explains[ph];
+    if(ph>=3){
+      const out=[];
+      for(let k=0; k<=(ph===3?state.dScanK:state.maxVal); k++)
+        for(let c=0; c<state.dHist[k]; c++) out.push(k);
+      $('dOut').textContent = out.length ? '[ ' + out.join(' → ') + ' ]' : '—';
+    } else {
+      $('dOut').textContent = '—';
     }
+  }
 
-    function orderedOutput(limit = state.maxVal) {
-      const out = [];
-      for (let k = 0; k <= limit; k++) {
-        for (let i = 0; i < state.hist[k]; i++) out.push(k);
-      }
-      return out;
-    }
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  RENDER TIEREDSORT
+  // ─────────────────────────────────────────────────────────────────────────────
+  function renderTiered(){
+    const W=720, H=480;
+    const parts=[];
+    const U = state.maxVal + 1;
+    const K = state.tK;
+    const TW = state.tTierWidth;
+    const ph = state.tPhaseIdx;
+    const vals = state.values;
+    const n = vals.length;
 
-    function updatePanels() {
-      $('phaseTxt').textContent = state.phase;
-      $('scanTxt').textContent = state.scanLevel;
-      $('peTxt').textContent = numPE();
-      $('nTxt').textContent = state.values.length;
-      $('dupTxt').textContent = duplicateCount();
-      $('hopTxt').textContent = state.hopSum || 0;
-      $('scanSlider').max = String(state.maxVal);
-      $('scanSlider').value = String(state.scanLevel);
+    parts.push(rect(0,0,W,H,'#06101d','none',0));
+    parts.push(txt(W/2, 22, `TIEREDSORT — K=${K} TIERS, tier_width=${TW}`, 13, '#b597ff', 700));
 
-      const ranges = tileRanges();
-      $('ownerText').textContent = ranges
-        .filter(r => r.size > 0)
-        .map(r => `PE${r.tile}[${r.start}-${r.end}]`)
-        .join('  ');
+    // ── Input lane ────────────────────────────────────────────────────────────
+    const laneY = 36;
+    const pktW = Math.min(52, (W-60)/Math.max(1,n));
+    const pktGap = 4;
+    const laneTotal = pktW*n + pktGap*(n-1);
+    const laneX0 = (W-laneTotal)/2;
+    vals.forEach((v,i)=>{
+      const x = laneX0 + i*(pktW+pktGap);
+      const active = ph >= 1;
+      parts.push(rect(x, laneY, pktW, 32, active?'#1a1030':'#0b1628', active?'#4a2972':'#1a3050', 8, 1.2));
+      parts.push(txt(x+pktW/2, laneY+21, String(v), 13, active?'#e7c0ff':'#6a88b0', 700));
+    });
+    parts.push(txt(10, laneY+18, 'IN', 11, '#6a88b0', 700, 'start'));
 
-      $('histText').textContent = state.hist
-        .map((c, k) => `H[${k}]=${c}`)
-        .join('  ');
+    // ── Coarse tier buckets ───────────────────────────────────────────────────
+    const tierY = 86;
+    const tierH = 110;
+    const tierGap = 8;
+    const tierW = (W-60-tierGap*(K-1))/K;
+    const tierX0 = 30;
 
-      $('loadText').textContent = state.tileLoads
-        .map((c, t) => c ? `PE${t}:${c}` : null)
-        .filter(Boolean)
-        .join('  ') || 'no activity';
+    for(let t=0; t<K; t++){
+      const x = tierX0 + t*(tierW+tierGap);
+      const base = t*TW;
+      const top = Math.min(base+TW-1, state.maxVal);
+      const isActive = ph >= 1 && state.tBuckets[t] && state.tBuckets[t].length > 0;
+      const isCurrent = (ph === 1 || ph === 2 || ph === 3) && t === state.tActiveTier;
+      const isDone = ph === 4 || (ph >= 2 && t < state.tActiveTier);
 
-      let out = '—';
-      if (state.phase === 'done') out = `[ ${orderedOutput().join(' → ')} ]`;
-      else if (state.phase === 'scan') out = `[ ${orderedOutput(state.scanLevel).join(' → ')} ]`;
-      else if (state.reduced) out = `[ ready for scan ]`;
-      $('outText').textContent = out;
+      const fill = isCurrent ? '#2a1040' : (isDone ? '#0d2a1a' : (isActive ? '#130e2a' : '#080e1c'));
+      const stroke = isCurrent ? '#b597ff' : (isDone ? '#3a7a5a' : (isActive ? '#4a2972' : '#162030'));
+      parts.push(rect(x, tierY, tierW, tierH, fill, stroke, 10, 1.5));
 
-      const explain = {
-        idle: 'Waiting. Each PE owns a sovereign range of the universe. Here the question is not “who is smaller than whom,” but “which tile owns each key.”',
-        inject: 'Spatial ingest. Each key travels across the mesh to its owner tile. This phase models routing cost / hop count in a many-core accelerator.',
-        reduce: 'Local accumulation. Duplicates no longer compete globally: they are consolidated inside the owner tile as local counters H[k].',
-        scan: 'Distributed scan. The read wave traverses k=0..U. If H[k] > 0, the output emits k exactly as many times as the counter indicates.',
-        done: 'Full readout complete. Order emerged from addressable space and local counters, not from comparisons or prefix-sum.'
-      };
-      $('explainText').textContent = explain[state.phase] || explain.idle;
-    }
+      // tier label
+      parts.push(txt(x+tierW/2, tierY+18, `Tier ${t}`, 11, isCurrent?'#d0a0ff':'#7a60a0', 700));
+      parts.push(txt(x+tierW/2, tierY+34, `[${base}–${top}]`, 10, '#6a5090', 600));
 
-    function rect(x, y, w, h, fill, stroke = 'none', rx = 10, sw = 1, extra = '') {
-      return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
-    }
-    function text(x, y, str, size = 14, fill = '#e6f0ff', weight = 600, anchor = 'middle') {
-      return `<text x="${x}" y="${y}" fill="${fill}" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}" font-family="Inter, sans-serif">${str}</text>`;
-    }
-    function line(x1, y1, x2, y2, stroke = '#28476f', width = 2, dash = '') {
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ''} stroke-linecap="round" />`;
-    }
-    function polyline(points, stroke = '#28476f', width = 2, dash = '', fill = 'none') {
-      const pts = points.map(p => `${p.x},${p.y}`).join(' ');
-      return `<polyline points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ''} stroke-linecap="round" stroke-linejoin="round" />`;
-    }
-    function circle(x, y, r, fill, stroke = 'none', sw = 1) {
-      return `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`;
-    }
-
-    function manhattanPath(packet, lanePoints, tileCenters) {
-      const start = lanePoints[packet.idx];
-      const end = tileCenters[packet.owner];
-      const turnY = end.y;
-      return [
-        { x: start.x, y: start.y },
-        { x: start.x, y: turnY },
-        { x: end.x, y: turnY }
-      ];
-    }
-
-    function packetPosition(packet, lanePoints, tileCenters) {
-      const pts = manhattanPath(packet, lanePoints, tileCenters);
-      const t = clamp(packet.progress, 0, 1);
-      const a = pts[0], b = pts[1], c = pts[2];
-      const len1 = Math.abs(b.y - a.y);
-      const len2 = Math.abs(c.x - b.x);
-      const total = Math.max(1, len1 + len2);
-      const dist = t * total;
-      if (dist <= len1) {
-        return { x: a.x, y: a.y + Math.sign(b.y - a.y) * dist };
-      }
-      const d2 = dist - len1;
-      return { x: b.x + Math.sign(c.x - b.x) * d2, y: b.y };
-    }
-
-    function render() {
-      const W = 1500, H = 920;
-      const parts = [];
-      parts.push(`
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#06101d" />
-            <stop offset="100%" stop-color="#030812" />
-          </linearGradient>
-          <linearGradient id="chipGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0a1325" />
-            <stop offset="100%" stop-color="#07101f" />
-          </linearGradient>
-        </defs>
-      `);
-      parts.push(rect(0, 0, W, H, 'url(#bg)'));
-      parts.push(rect(16, 16, W - 32, H - 32, 'url(#chipGrad)', '#173257', 28, 2));
-      parts.push(text(46, 44, 'DIALSORT · CEREBRAS-STYLE SPATIAL SIMULATOR', 18, '#dceaff', 800, 'start'));
-
-      const laneArea = { x: 54, y: 84, w: 1392, h: 96 };
-      const meshArea = { x: 54, y: 220, w: 900, h: 620 };
-      const histArea = { x: 994, y: 220, w: 430, h: 280 };
-      const scanArea = { x: 994, y: 530, w: 430, h: 310 };
-
-      parts.push(text(laneArea.x, 108, 'INPUT LANES', 14, '#9cb6dc', 700, 'start'));
-      parts.push(text(meshArea.x, 204, 'SPATIAL PE MESH', 14, '#9cb6dc', 700, 'start'));
-      parts.push(text(histArea.x, 204, 'LOCAL HISTOGRAM / OWNER COUNTS', 14, '#9cb6dc', 700, 'start'));
-      parts.push(text(scanArea.x, 514, 'ORDERED SCAN WAVE', 14, '#9cb6dc', 700, 'start'));
-
-      parts.push(rect(laneArea.x, laneArea.y, laneArea.w, laneArea.h, '#091221', '#1d395e', 18, 1.5));
-      parts.push(rect(meshArea.x, meshArea.y, meshArea.w, meshArea.h, '#091221', '#1d395e', 18, 1.5));
-      parts.push(rect(histArea.x, histArea.y, histArea.w, histArea.h, '#091221', '#1d395e', 18, 1.5));
-      parts.push(rect(scanArea.x, scanArea.y, scanArea.w, scanArea.h, '#091221', '#1d395e', 18, 1.5));
-
-      const laneGap = 8;
-      const laneW = Math.min(70, (laneArea.w - laneGap * (Math.max(1, state.values.length) - 1)) / Math.max(1, state.values.length));
-      const laneTotal = laneW * Math.max(1, state.values.length) + laneGap * (Math.max(1, state.values.length) - 1);
-      const laneStart = laneArea.x + (laneArea.w - laneTotal) / 2;
-      const lanePoints = [];
-      state.values.forEach((v, i) => {
-        const x = laneStart + i * (laneW + laneGap);
-        const y = laneArea.y + 22;
-        lanePoints.push({ x: x + laneW / 2, y: y + 34 });
-        parts.push(rect(x, y, laneW, 48, '#10203b', '#294972', 12, 1.4));
-        parts.push(text(x + laneW / 2, y + 20, `d${i+1}`, 11, '#8ca7cf', 700));
-        parts.push(text(x + laneW / 2, y + 38, String(v), 16, '#e7f1ff', 800));
-        parts.push(line(x + laneW / 2, y + 48, x + laneW / 2, meshArea.y - 14, '#183d66', 1.5, '4 6'));
-      });
-
-      const tileGap = 12;
-      const tileW = (meshArea.w - tileGap * (state.cols + 1)) / state.cols;
-      const tileH = (meshArea.h - tileGap * (state.rows + 1)) / state.rows;
-      const ranges = tileRanges();
-      const tileCenters = [];
-
-      for (let r = 0; r < state.rows; r++) {
-        for (let c = 0; c < state.cols; c++) {
-          const t = r * state.cols + c;
-          const x = meshArea.x + tileGap + c * (tileW + tileGap);
-          const y = meshArea.y + tileGap + r * (tileH + tileGap);
-          const range = ranges[t];
-          const load = state.tileLoads[t] || 0;
-          const active = load > 0;
-          const isScanOwner = range && range.size > 0 && state.phase === 'scan' && state.scanLevel >= range.start && state.scanLevel <= range.end;
-          const fill = active ? (isScanOwner ? '#164739' : '#14325a') : '#0d1830';
-          parts.push(rect(x, y, tileW, tileH, fill, active ? '#4a7fba' : '#203c62', 14, 1.6));
-          if (range && range.size > 0) {
-            parts.push(rect(x + 10, y + 10, tileW - 20, 26, 'rgba(181,151,255,.12)', '#5a60a8', 10, 1));
-            parts.push(text(x + tileW / 2, y + 28, `PE${t} · [${range.start}-${range.end}]`, 12, '#dfe7ff', 800));
-          } else {
-            parts.push(text(x + tileW / 2, y + 28, `PE${t} · —`, 12, '#7d97bf', 700));
-          }
-          parts.push(text(x + tileW / 2, y + tileH - 18, `load ${load}`, 12, active ? '#6bf5b0' : '#7892ba', 700));
-
-          const center = { x: x + tileW / 2, y: y + tileH / 2 };
-          tileCenters.push(center);
-          parts.push(circle(center.x, center.y, 10, active ? '#6bf5b0' : '#203657', active ? '#d8fff0' : '#44668e', 1.3));
-
-          if (state.reduced && active) {
-            const hits = state.ownerHits[t] || [];
-            const grouped = {};
-            hits.forEach(h => grouped[h.value] = (grouped[h.value] || 0) + 1);
-            const keys = Object.keys(grouped).map(Number).sort((a,b) => a-b).slice(0, 4);
-            keys.forEach((k, idx) => {
-              const bx = x + 16 + idx * 34;
-              const by = y + tileH - 54;
-              parts.push(rect(bx, by, 28, 22, '#2a220a', '#8f6b12', 8, 1));
-              parts.push(text(bx + 14, by + 15, `${k}:${grouped[k]}`, 10, '#fff1c0', 800));
-            });
-          }
-        }
-      }
-
-      for (let r = 0; r <= state.rows; r++) {
-        const y = meshArea.y + tileGap / 2 + r * (tileH + tileGap);
-        parts.push(line(meshArea.x + 6, y, meshArea.x + meshArea.w - 6, y, '#102846', 1));
-      }
-      for (let c = 0; c <= state.cols; c++) {
-        const x = meshArea.x + tileGap / 2 + c * (tileW + tileGap);
-        parts.push(line(x, meshArea.y + 6, x, meshArea.y + meshArea.h - 6, '#102846', 1));
-      }
-
-      if (state.injected || state.phase === 'inject') {
-        state.packets.forEach(packet => {
-          const pos = packetPosition(packet, lanePoints, tileCenters);
-          const route = manhattanPath(packet, lanePoints, tileCenters);
-          parts.push(polyline(route, '#234b7c', 1.5, '4 5'));
-          parts.push(circle(pos.x, pos.y, 9, '#57a8ff', '#d8eeff', 2));
-          parts.push(text(pos.x, pos.y + 4, String(packet.value), 10, '#06101d', 800));
+      // contents
+      if(ph >= 1 && state.tBuckets[t]){
+        const items = state.tBuckets[t];
+        const iW = Math.min(26, (tierW-16)/Math.max(1,items.length));
+        const iGap = 2;
+        const iTotal = iW*items.length + iGap*(items.length-1);
+        const iX0 = x + (tierW-iTotal)/2;
+        items.forEach((v,j)=>{
+          const ix = iX0 + j*(iW+iGap);
+          const iColor = isDone ? '#3a7a5a' : (isCurrent ? '#6a40a0' : '#2a1a50');
+          const tColor = isDone ? '#6bf5b0' : (isCurrent ? '#d0a0ff' : '#9070c0');
+          parts.push(rect(ix, tierY+44, iW, 22, iColor, 'none', 4));
+          parts.push(txt(ix+iW/2, tierY+59, String(v), 9, tColor, 700));
         });
       }
 
-      const U = state.maxVal + 1;
-      const rowH = (histArea.h - 46) / U;
-      for (let k = 0; k < U; k++) {
-        const y = histArea.y + 16 + (U - 1 - k) * rowH;
-        const active = state.phase === 'scan' && state.scanLevel === k;
-        parts.push(rect(histArea.x + 12, y, histArea.w - 24, rowH - 4, active ? 'rgba(87,168,255,.14)' : '#0f1b31', active ? '#5aaeff' : '#173257', 8, 1));
-        parts.push(text(histArea.x + 34, y + rowH * 0.62, `k=${k}`, 11, active ? '#cfe9ff' : '#89a6cf', 700, 'start'));
-        const barW = (histArea.w - 120) * (state.values.length ? state.hist[k] / state.values.length : 0);
-        parts.push(rect(histArea.x + 86, y + 5, barW, rowH - 14, state.hist[k] ? '#ffc857' : '#203657', 'none', 8, 1));
-        parts.push(text(histArea.x + histArea.w - 18, y + rowH * 0.62, String(state.hist[k]), 11, '#fff1c0', 800, 'end'));
+      // count badge
+      const cnt = (state.tBuckets[t]||[]).length;
+      if(cnt > 0){
+        parts.push(txt(x+tierW/2, tierY+tierH-8, `n=${cnt}`, 10, isCurrent?'#d0a0ff':'#6a5090', 600));
       }
 
-      const scanX = scanArea.x + 64;
-      const scanTop = scanArea.y + 22;
-      const scanBottom = scanArea.y + scanArea.h - 22;
-      parts.push(line(scanX, scanTop, scanX, scanBottom, '#355c8c', 4));
-      const scanRowH = (scanBottom - scanTop) / U;
-      const pointerY = scanBottom - (state.scanLevel + 0.5) * scanRowH;
-      if (state.phase === 'scan' || state.phase === 'done') {
-        parts.push(circle(scanX, pointerY, 10, '#88f0b2', '#e3fff1', 2));
-        parts.push(line(scanX, pointerY, scanArea.x + scanArea.w - 32, pointerY, '#2c805f', 2, '6 5'));
+      // scatter arrows from input lane
+      if(ph === 1){
+        vals.forEach((v,i)=>{
+          const tierIdx = Math.min(K-1, Math.floor(v/TW));
+          if(tierIdx === t){
+            const srcX = laneX0 + i*(pktW+pktGap) + pktW/2;
+            const dstX = x + tierW/2;
+            parts.push(line(srcX, laneY+32, dstX, tierY, '#ff9f57', 1, '3 4'));
+          }
+        });
       }
-      parts.push(text(scanArea.x + 102, scanArea.y + 34, 'scan stream', 13, '#9cb6dc', 700, 'start'));
-      const shown = state.phase === 'done' ? orderedOutput() : (state.phase === 'scan' ? orderedOutput(state.scanLevel) : []);
-      const chunked = shown.length ? shown.join('  ') : '—';
-      parts.push(text(scanArea.x + 102, scanArea.y + 68, chunked, 18, '#fff0c4', 800, 'start'));
-      parts.push(text(scanArea.x + 102, scanArea.y + 108, 'No comparator. No prefix-sum. Only owner lookup + local accumulation + scan.', 12, '#9ec2db', 600, 'start'));
-
-      svg.innerHTML = parts.join('');
     }
 
-    function syncAndRender() {
-      computeState();
-      updatePanels();
-      render();
+    // ── Fine histogram (pass 2) ───────────────────────────────────────────────
+    const fineY = tierY + tierH + 20;
+    const fineH = 130;
+
+    if(ph >= 2 && state.tActiveTier < K){
+      const tier = state.tActiveTier;
+      const base = tier * TW;
+      parts.push(txt(30, fineY-8, `Fine histogram — Tier ${tier} (keys ${base}..${Math.min(base+TW-1,state.maxVal)})`, 11, '#ff9f57', 700, 'start'));
+
+      const fW = Math.min(52, (W-60)/Math.max(1,TW));
+      const fGap = Math.max(2,(W-60-fW*TW)/Math.max(1,TW-1));
+      const fX0 = (W-(fW*TW+fGap*(TW-1)))/2;
+      const maxFine = Math.max(1,...(state.tLocalHist||[1]));
+
+      for(let j=0; j<TW; j++){
+        const val = base+j;
+        if(val > state.maxVal) break;
+        const x = fX0 + j*(fW+fGap);
+        const count = (state.tLocalHist||[])[j] || 0;
+        const barH = count > 0 ? Math.max(8,(count/maxFine)*(fineH-36)) : 0;
+        const barY = fineY + fineH - 26 - barH;
+
+        parts.push(rect(x, fineY, fW, fineH-20, count>0?'#1a0e30':'#0a0a18', count>0?'#6040a0':'#181828', 6, 1.2));
+        if(barH>0){
+          parts.push(rect(x+2, barY, fW-4, barH, '#ff6de1', 'none', 4));
+          parts.push(txt(x+fW/2, barY-4, String(count), 9, '#ff6de1', 700));
+        }
+        parts.push(txt(x+fW/2, fineY+fineH-8, String(val), 10, '#8060b0', 700));
+      }
+    } else if(ph >= 3 || ph === 4){
+      parts.push(txt(W/2, fineY+fineH/2, ph===4?'All tiers processed ✓':`Processing tier ${state.tActiveTier}…`, 13, ph===4?'#6bf5b0':'#9070c0', 700));
+    } else {
+      parts.push(rect(30, fineY, W-60, fineH, '#080e1c', '#162030', 10, 1));
+      parts.push(txt(W/2, fineY+fineH/2+6, 'Fine histogram will appear after scatter', 12, '#3a5070', 600));
     }
 
-    function setPhase(phase) {
-      state.phase = phase;
-      updatePanels();
-      render();
-    }
-
-    function disableRunButtons(disabled) {
-      ['btnInject','btnReduce','btnScan','btnAuto'].forEach(id => $(id).disabled = disabled);
-    }
-
-    async function runInject() {
-      if (state.phase !== 'idle') return;
-      stopTimers();
-      disableRunButtons(true);
-      state.injected = true;
-      state.reduced = false;
-      state.packets.forEach(p => p.progress = 0);
-      setPhase('inject');
-      let t = 0;
-      await new Promise(resolve => {
-        state.injectTimer = setInterval(() => {
-          t += 0.08;
-          state.packets.forEach(p => p.progress = clamp(t, 0, 1));
-          render();
-          if (t >= 1) {
-            clearInterval(state.injectTimer);
-            state.injectTimer = null;
-            state.packets.forEach(p => p.progress = 1);
-            setPhase('idle');
-            disableRunButtons(false);
-            resolve();
-          }
-        }, 45);
+    // ── Output ────────────────────────────────────────────────────────────────
+    const outY = fineY + fineH + 14;
+    parts.push(txt(10, outY+18, 'OUT', 11, '#6a88b0', 700, 'start'));
+    if(state.tOutput.length > 0){
+      const out = state.tOutput;
+      const oW = Math.min(36,(W-80)/Math.max(1,out.length));
+      const oGap=2;
+      const oTotal=oW*out.length+oGap*(out.length-1);
+      const oX0=(W-oTotal)/2;
+      out.forEach((v,i)=>{
+        const x=oX0+i*(oW+oGap);
+        parts.push(rect(x,outY,oW,26,'#0d2a1a','#3a7a5a',5,1.2));
+        parts.push(txt(x+oW/2,outY+18,String(v),10,'#6bf5b0',700));
       });
     }
 
-    async function runReduce() {
-      if (state.phase !== 'idle' || !state.injected) return;
-      stopTimers();
-      disableRunButtons(true);
-      setPhase('reduce');
-      await new Promise(resolve => {
-        let flips = 0;
-        state.reduceTimer = setInterval(() => {
-          flips++;
-          render();
-          if (flips > 8) {
-            clearInterval(state.reduceTimer);
-            state.reduceTimer = null;
-            state.reduced = true;
-            setPhase('idle');
-            disableRunButtons(false);
-            resolve();
-          }
-        }, 90);
-      });
-    }
+    // phase label
+    const phNames=['idle','pass 1: scatter to tiers','pass 2: fine histogram','emitting tier','complete'];
+    parts.push(rect(W/2-110,H-28,220,22,'#091422','#1a3255',8,1));
+    parts.push(txt(W/2,H-13,phNames[ph]||'idle',12,'#b597ff',700));
 
-    async function runScan() {
-      if (state.phase !== 'idle' || !state.reduced) return;
-      stopTimers();
-      disableRunButtons(true);
-      state.scanLevel = 0;
-      setPhase('scan');
-      await new Promise(resolve => {
-        state.scanTimer = setInterval(() => {
-          state.scanLevel += 1;
-          if (state.scanLevel > state.maxVal) {
-            clearInterval(state.scanTimer);
-            state.scanTimer = null;
-            state.scanLevel = state.maxVal;
-            setPhase('done');
-            disableRunButtons(false);
-            resolve();
-          } else {
-            updatePanels();
-            render();
-          }
-        }, 360);
-      });
-    }
+    $('tieredSvg').innerHTML = parts.join('');
 
-    async function runAuto() {
-      if (state.phase !== 'idle') return;
-      await runInject();
-      await runReduce();
-      await runScan();
-    }
+    $('tPhase').textContent = phNames[ph];
+    $('tTier').textContent = ph>=1&&ph<4 ? state.tActiveTier : (ph===4?'done':'—');
+    $('tK').textContent = K;
+    $('tU').textContent = U;
 
-    $('btnApplyInput').addEventListener('click', () => {
-      stopTimers();
-      state.maxVal = clamp(Number($('maxVal').value) || 15, 3, 63);
-      state.rows = clamp(Number($('rows').value) || 4, 2, 12);
-      state.cols = clamp(Number($('cols').value) || 8, 2, 16);
-      state.values = parseInput($('vectorInput').value);
-      if (!state.values.length) state.values = [0];
-      state.values = state.values.map(v => clamp(v, 0, state.maxVal));
-      $('vectorInput').value = state.values.join(',');
-      state.scanLevel = 0;
-      state.injected = false;
-      state.reduced = false;
-      setPhase('idle');
-      syncAndRender();
-    });
+    const explains=[
+      `Waiting. TieredSort will split universe [0,${state.maxVal}] into K=${K} coarse tiers of width ${TW}. Working set per pass: O(${TW}) instead of O(${U}).`,
+      `Pass 1 — Scatter: each key goes into its coarse tier bucket. tier = floor(key / ${TW}). No comparisons, just integer division.`,
+      `Pass 2 — Fine histogram inside Tier ${state.tActiveTier} (keys ${state.tActiveTier*TW}..${Math.min(state.tActiveTier*TW+TW-1,state.maxVal)}). Local histogram of size ${TW} fits easily in L1 cache.`,
+      `Emitting sorted values from Tier ${state.tActiveTier-1}, moving to next tier.`,
+      `Complete. All ${K} tiers processed in order. Two-level structure kept cache footprint at O(√U)=O(${TW}) per pass.`
+    ];
+    $('tExplain').textContent = explains[ph];
+    $('tOut').textContent = state.tOutput.length
+            ? '[ ' + state.tOutput.join(' → ') + ' ]'
+            : '—';
+  }
 
-    $('btnRandom').addEventListener('click', () => {
-      stopTimers();
-      state.maxVal = clamp(Number($('maxVal').value) || 15, 3, 63);
-      state.rows = clamp(Number($('rows').value) || 4, 2, 12);
-      state.cols = clamp(Number($('cols').value) || 8, 2, 16);
-      state.values = randomVector(16);
-      $('vectorInput').value = state.values.join(',');
-      state.scanLevel = 0;
-      state.injected = false;
-      state.reduced = false;
-      setPhase('idle');
-      syncAndRender();
-    });
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  RENDER ALL
+  // ─────────────────────────────────────────────────────────────────────────────
+  function renderAll(){
+    renderDial();
+    renderTiered();
+    const done = state.dPhaseIdx >= 4 && state.tPhaseIdx >= 4;
+    $('stepLabel').textContent = done ? 'Phase: complete ✓' : 'Phase: ' + ['idle','inject','histogram','scan','done'][state.dPhaseIdx];
+  }
 
-    $('btnInject').addEventListener('click', runInject);
-    $('btnReduce').addEventListener('click', runReduce);
-    $('btnScan').addEventListener('click', runScan);
-    $('btnAuto').addEventListener('click', runAuto);
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  AUTO
+  // ─────────────────────────────────────────────────────────────────────────────
+  function stopAuto(){
+    if(state.autoTimer){ clearInterval(state.autoTimer); state.autoTimer=null; }
+  }
+  function startAuto(){
+    stopAuto();
+    state.autoTimer = setInterval(()=>{
+      const done = state.dPhaseIdx >= 4 && state.tPhaseIdx >= 4;
+      if(done){ stopAuto(); $('btnAuto').textContent='▶▶ Auto'; return; }
+      step();
+    }, 800);
+    $('btnAuto').textContent='⏸ Stop';
+  }
 
-    $('btnReset').addEventListener('click', () => {
-      stopTimers();
-      state.scanLevel = 0;
-      state.injected = false;
-      state.reduced = false;
-      setPhase('idle');
-      syncAndRender();
-    });
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  EVENTS
+  // ─────────────────────────────────────────────────────────────────────────────
+  $('btnApply').addEventListener('click',()=>{
+    stopAuto(); $('btnAuto').textContent='▶▶ Auto';
+    state.maxVal = clamp(Number($('maxVal').value)||15, 3, 63);
+    state.values = parseVec($('vecInput').value);
+    if(!state.values.length) state.values=[0];
+    initState();
+  });
+  $('btnRandom').addEventListener('click',()=>{
+    stopAuto(); $('btnAuto').textContent='▶▶ Auto';
+    state.maxVal = clamp(Number($('maxVal').value)||15, 3, 63);
+    state.values = randomVec();
+    $('vecInput').value = state.values.join(',');
+    initState();
+  });
+  $('btnStep').addEventListener('click',()=>{ stopAuto(); $('btnAuto').textContent='▶▶ Auto'; step(); });
+  $('btnAuto').addEventListener('click',()=>{
+    if(state.autoTimer){ stopAuto(); $('btnAuto').textContent='▶▶ Auto'; }
+    else startAuto();
+  });
+  $('btnReset').addEventListener('click',()=>{
+    stopAuto(); $('btnAuto').textContent='▶▶ Auto';
+    initState();
+  });
 
-    $('scanSlider').addEventListener('input', (e) => {
-      stopTimers();
-      if (!state.reduced && state.phase !== 'done') return;
-      state.scanLevel = clamp(Number(e.target.value), 0, state.maxVal);
-      setPhase('scan');
-    });
-
-    ['maxVal','rows','cols'].forEach(id => {
-      $(id).addEventListener('change', () => {
-        stopTimers();
-        state.maxVal = clamp(Number($('maxVal').value) || 15, 3, 63);
-        state.rows = clamp(Number($('rows').value) || 4, 2, 12);
-        state.cols = clamp(Number($('cols').value) || 8, 2, 16);
-        state.values = state.values.map(v => clamp(v, 0, state.maxVal));
-        $('vectorInput').value = state.values.join(',');
-        state.scanLevel = clamp(state.scanLevel, 0, state.maxVal);
-        state.injected = false;
-        state.reduced = false;
-        setPhase('idle');
-        syncAndRender();
-      });
-    });
-
-    syncAndRender();
-  </script>
+  // init
+  initState();
+</script>
 </body>
 </html>

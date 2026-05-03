@@ -1,0 +1,500 @@
+================================================================
+DialSort vs. TieredSort — Direct Comparison Benchmark
+Course : ST0245 - Data Structures and Algorithms, EAFIT
+Paper  : DialSort: Non-Comparative Integer Sorting
+         via the Self-Indexing Principle
+================================================================
+Compiler     : g++ 15.2.1 20260123 (Red Hat 15.2.1-7)
+Flags        : -O3 -std=c++17 -pthread
+Threads      : 8
+Warmup       : 3 discarded runs
+Measurement  : best-of-7 runs
+Seed         : 20260321
+================================================================
+
+================================================================
+INTERNAL BEHAVIOR VISUALIZATION (n=16, U=64)
+================================================================
+Input : [47, 19, 13, 50, 24, 35, 63, 48, 35, 6, 59, 57, 20, 47, 37, 54]
+
+[TieredSort TRACE] n=16  U=58  range=[6, 63]  K=8  tier_width=8
+[TieredSort TRACE] After Pass 1 (coarse scatter):
+  Tier 0 (base=6): [13, 6]
+  Tier 1 (base=14): [19, 20]
+  Tier 2 (base=22): [24]
+  Tier 3 (base=30): [35, 35, 37]
+  Tier 5 (base=46): [47, 50, 48, 47]
+  Tier 6 (base=54): [59, 57, 54]
+  Tier 7 (base=62): [63]
+[TieredSort TRACE] After Pass 2 (output): [6, 13, 19, 20, 24, 35, 35, 37, 47, 47, 48, 50, 54, 57, 59, 63]
+
+[DialSort TRACE] DialSort builds one flat histogram H[0..63],
+                 increments H[k] for each key k, then emits
+                 each value H[k] times in a single O(U) scan.
+                 No tier structure — one pass over all 64 buckets.
+
+================================================================
+TABLE — DialSort vs TieredSort vs std::sort
+Column 'vs std::sort': speedup relative to GCC introsort
+
+Algorithm                   Dist      N           U       ms (best)    M keys/s      vs std::sort  OK
+-------------------------------------------------------------------------------------------------------------------
+std::sort                   uniform   10000       256     0.853        11.721        1.000         OK
+DialSort                    uniform   10000       256     0.137        72.945        6.224         OK
+DialSort-Parallel           uniform   10000       256     0.353        28.317        2.416         OK
+TieredSort                  uniform   10000       256     0.344        29.044        2.478         OK
+
+std::sort                   skewed    10000       256     0.601        16.648        1.000         OK
+DialSort                    skewed    10000       256     0.132        75.505        4.535         OK
+DialSort-Parallel           skewed    10000       256     0.454        22.036        1.324         OK
+TieredSort                  skewed    10000       256     0.242        41.344        2.483         OK
+
+std::sort                   sorted    10000       256     0.287        34.785        1.000         OK
+DialSort                    sorted    10000       256     0.170        58.769        1.689         OK
+DialSort-Parallel           sorted    10000       256     0.417        23.974        0.689         OK
+TieredSort                  sorted    10000       256     0.248        40.279        1.158         OK
+
+std::sort                   reverse   10000       256     0.322        31.012        1.000         OK
+DialSort                    reverse   10000       256     0.143        69.908        2.254         OK
+DialSort-Parallel           reverse   10000       256     0.447        22.391        0.722         OK
+TieredSort                  reverse   10000       256     0.266        37.595        1.212         OK
+
+std::sort                   uniform   10000       1024    0.858        11.652        1.000         OK
+DialSort                    uniform   10000       1024    0.141        71.169        6.108         OK
+DialSort-Parallel           uniform   10000       1024    0.607        16.483        1.415         OK
+TieredSort                  uniform   10000       1024    0.483        20.696        1.776         OK
+
+std::sort                   skewed    10000       1024    0.632        15.825        1.000         OK
+DialSort                    skewed    10000       1024    0.152        65.610        4.146         OK
+DialSort-Parallel           skewed    10000       1024    0.648        15.421        0.974         OK
+TieredSort                  skewed    10000       1024    0.333        29.993        1.895         OK
+
+std::sort                   sorted    10000       1024    0.327        30.578        1.000         OK
+DialSort                    sorted    10000       1024    0.213        46.976        1.536         OK
+DialSort-Parallel           sorted    10000       1024    0.694        14.419        0.472         OK
+TieredSort                  sorted    10000       1024    0.389        25.731        0.842         OK
+
+std::sort                   reverse   10000       1024    0.298        33.506        1.000         OK
+DialSort                    reverse   10000       1024    0.209        47.883        1.429         OK
+DialSort-Parallel           reverse   10000       1024    0.675        14.815        0.442         OK
+TieredSort                  reverse   10000       1024    0.345        29.013        0.866         OK
+
+std::sort                   uniform   10000       65536   0.912        10.963        1.000         OK
+DialSort                    uniform   10000       65536   0.620        16.118        1.470         OK
+DialSort-Parallel           uniform   10000       65536   7.694        1.300         0.119         OK
+TieredSort                  uniform   10000       65536   0.828        12.078        1.102         OK
+
+std::sort                   skewed    10000       65536   0.955        10.470        1.000         OK
+DialSort                    skewed    10000       65536   0.547        18.267        1.745         OK
+DialSort-Parallel           skewed    10000       65536   7.500        1.333         0.127         OK
+TieredSort                  skewed    10000       65536   0.555        18.022        1.721         OK
+
+std::sort                   sorted    10000       65536   0.367        27.260        1.000         OK
+DialSort                    sorted    10000       65536   0.677        14.775        0.542         OK
+DialSort-Parallel           sorted    10000       65536   7.185        1.392         0.051         OK
+TieredSort                  sorted    10000       65536   0.778        12.862        0.472         OK
+
+std::sort                   reverse   10000       65536   0.259        38.625        1.000         OK
+DialSort                    reverse   10000       65536   0.757        13.216        0.342         OK
+DialSort-Parallel           reverse   10000       65536   7.590        1.317         0.034         OK
+TieredSort                  reverse   10000       65536   0.835        11.975        0.310         OK
+
+std::sort                   uniform   100000      256     8.259        12.107        1.000         OK
+DialSort                    uniform   100000      256     1.501        66.601        5.501         OK
+DialSort-Parallel           uniform   100000      256     1.683        59.408        4.907         OK
+TieredSort                  uniform   100000      256     2.721        36.758        3.036         OK
+
+std::sort                   skewed    100000      256     7.105        14.074        1.000         OK
+DialSort                    skewed    100000      256     1.500        66.670        4.737         OK
+DialSort-Parallel           skewed    100000      256     1.772        56.430        4.009         OK
+TieredSort                  skewed    100000      256     2.517        39.734        2.823         OK
+
+std::sort                   sorted    100000      256     3.659        27.331        1.000         OK
+DialSort                    sorted    100000      256     1.286        77.744        2.845         OK
+DialSort-Parallel           sorted    100000      256     1.759        56.861        2.080         OK
+TieredSort                  sorted    100000      256     2.687        37.218        1.362         OK
+
+std::sort                   reverse   100000      256     3.249        30.781        1.000         OK
+DialSort                    reverse   100000      256     1.335        74.920        2.434         OK
+DialSort-Parallel           reverse   100000      256     1.909        52.394        1.702         OK
+TieredSort                  reverse   100000      256     2.356        42.441        1.379         OK
+
+std::sort                   uniform   100000      1024    9.089        11.002        1.000         OK
+DialSort                    uniform   100000      1024    1.358        73.616        6.691         OK
+DialSort-Parallel           uniform   100000      1024    1.818        54.995        4.999         OK
+TieredSort                  uniform   100000      1024    2.242        44.600        4.054         OK
+
+std::sort                   skewed    100000      1024    8.029        12.455        1.000         OK
+DialSort                    skewed    100000      1024    1.398        71.519        5.742         OK
+DialSort-Parallel           skewed    100000      1024    1.723        58.039        4.660         OK
+TieredSort                  skewed    100000      1024    2.805        35.649        2.862         OK
+
+std::sort                   sorted    100000      1024    3.031        32.988        1.000         OK
+DialSort                    sorted    100000      1024    1.338        74.720        2.265         OK
+DialSort-Parallel           sorted    100000      1024    1.938        51.599        1.564         OK
+TieredSort                  sorted    100000      1024    2.422        41.287        1.252         OK
+
+std::sort                   reverse   100000      1024    3.242        30.844        1.000         OK
+DialSort                    reverse   100000      1024    1.443        69.283        2.246         OK
+DialSort-Parallel           reverse   100000      1024    1.692        59.108        1.916         OK
+TieredSort                  reverse   100000      1024    2.316        43.180        1.400         OK
+
+std::sort                   uniform   100000      65536   11.357       8.805         1.000         OK
+DialSort                    uniform   100000      65536   2.229        44.870        5.096         OK
+DialSort-Parallel           uniform   100000      65536   9.502        10.524        1.195         OK
+TieredSort                  uniform   100000      65536   3.147        31.780        3.609         OK
+
+std::sort                   skewed    100000      65536   9.638        10.376        1.000         OK
+DialSort                    skewed    100000      65536   1.900        52.632        5.073         OK
+DialSort-Parallel           skewed    100000      65536   8.839        11.313        1.090         OK
+TieredSort                  skewed    100000      65536   3.067        32.600        3.142         OK
+
+std::sort                   sorted    100000      65536   4.313        23.187        1.000         OK
+DialSort                    sorted    100000      65536   2.961        33.778        1.457         OK
+DialSort-Parallel           sorted    100000      65536   10.089       9.912         0.427         OK
+TieredSort                  sorted    100000      65536   4.087        24.468        1.055         OK
+
+std::sort                   reverse   100000      65536   3.667        27.268        1.000         OK
+DialSort                    reverse   100000      65536   3.348        29.867        1.095         OK
+DialSort-Parallel           reverse   100000      65536   9.738        10.270        0.377         OK
+TieredSort                  reverse   100000      65536   4.249        23.532        0.863         OK
+
+std::sort                   uniform   1000000     256     94.063       10.631        1.000         OK
+DialSort                    uniform   1000000     256     14.262       70.116        6.595         OK
+DialSort-Parallel           uniform   1000000     256     12.230       81.768        7.691         OK
+TieredSort                  uniform   1000000     256     26.225       38.131        3.587         OK
+
+std::sort                   skewed    1000000     256     79.301       12.610        1.000         OK
+DialSort                    skewed    1000000     256     13.934       71.769        5.691         OK
+DialSort-Parallel           skewed    1000000     256     14.159       70.628        5.601         OK
+TieredSort                  skewed    1000000     256     26.457       37.797        2.997         OK
+
+std::sort                   sorted    1000000     256     42.428       23.570        1.000         OK
+DialSort                    sorted    1000000     256     13.333       75.002        3.182         OK
+DialSort-Parallel           sorted    1000000     256     12.592       79.416        3.369         OK
+TieredSort                  sorted    1000000     256     26.944       37.114        1.575         OK
+
+std::sort                   reverse   1000000     256     44.071       22.691        1.000         OK
+DialSort                    reverse   1000000     256     13.987       71.497        3.151         OK
+DialSort-Parallel           reverse   1000000     256     13.017       76.821        3.386         OK
+TieredSort                  reverse   1000000     256     24.376       41.025        1.808         OK
+
+std::sort                   uniform   1000000     1024    99.845       10.016        1.000         OK
+DialSort                    uniform   1000000     1024    15.334       65.214        6.511         OK
+DialSort-Parallel           uniform   1000000     1024    13.804       72.441        7.233         OK
+TieredSort                  uniform   1000000     1024    25.413       39.351        3.929         OK
+
+std::sort                   skewed    1000000     1024    89.248       11.205        1.000         OK
+DialSort                    skewed    1000000     1024    14.995       66.690        5.952         OK
+DialSort-Parallel           skewed    1000000     1024    12.383       80.758        7.208         OK
+TieredSort                  skewed    1000000     1024    28.239       35.411        3.160         OK
+
+std::sort                   sorted    1000000     1024    41.065       24.352        1.000         OK
+DialSort                    sorted    1000000     1024    15.338       65.200        2.677         OK
+DialSort-Parallel           sorted    1000000     1024    11.893       84.083        3.453         OK
+TieredSort                  sorted    1000000     1024    25.979       38.492        1.581         OK
+
+std::sort                   reverse   1000000     1024    43.471       23.004        1.000         OK
+DialSort                    reverse   1000000     1024    14.055       71.148        3.093         OK
+DialSort-Parallel           reverse   1000000     1024    12.157       82.258        3.576         OK
+TieredSort                  reverse   1000000     1024    24.750       40.404        1.756         OK
+
+std::sort                   uniform   1000000     65536   135.016      7.407         1.000         OK
+DialSort                    uniform   1000000     65536   15.808       63.257        8.541         OK
+DialSort-Parallel           uniform   1000000     65536   19.132       52.270        7.057         OK
+TieredSort                  uniform   1000000     65536   26.287       38.042        5.136         OK
+
+std::sort                   skewed    1000000     65536   114.119      8.763         1.000         OK
+DialSort                    skewed    1000000     65536   14.033       71.261        8.132         OK
+DialSort-Parallel           skewed    1000000     65536   20.329       49.190        5.614         OK
+TieredSort                  skewed    1000000     65536   28.012       35.699        4.074         OK
+
+std::sort                   sorted    1000000     65536   42.156       23.722        1.000         OK
+DialSort                    sorted    1000000     65536   18.981       52.683        2.221         OK
+DialSort-Parallel           sorted    1000000     65536   19.610       50.995        2.150         OK
+TieredSort                  sorted    1000000     65536   28.662       34.890        1.471         OK
+
+std::sort                   reverse   1000000     65536   42.472       23.545        1.000         OK
+DialSort                    reverse   1000000     65536   20.636       48.460        2.058         OK
+DialSort-Parallel           reverse   1000000     65536   21.084       47.429        2.014         OK
+TieredSort                  reverse   1000000     65536   30.112       33.209        1.410         OK
+
+std::sort                   uniform   10000000    256     1089.624     9.177         1.000         OK
+DialSort                    uniform   10000000    256     161.143      62.056        6.762         OK
+DialSort-Parallel           uniform   10000000    256     118.514      84.378        9.194         OK
+TieredSort                  uniform   10000000    256     258.717      38.652        4.212         OK
+
+std::sort                   skewed    10000000    256     1073.754     9.313         1.000         OK
+DialSort                    skewed    10000000    256     169.483      59.003        6.335         OK
+DialSort-Parallel           skewed    10000000    256     134.603      74.293        7.977         OK
+TieredSort                  skewed    10000000    256     313.696      31.878        3.423         OK
+
+std::sort                   sorted    10000000    256     571.929      17.485        1.000         OK
+DialSort                    sorted    10000000    256     149.594      66.847        3.823         OK
+DialSort-Parallel           sorted    10000000    256     116.885      85.554        4.893         OK
+TieredSort                  sorted    10000000    256     276.092      36.220        2.072         OK
+
+std::sort                   reverse   10000000    256     581.982      17.183        1.000         OK
+DialSort                    reverse   10000000    256     148.942      67.140        3.907         OK
+DialSort-Parallel           reverse   10000000    256     117.519      85.093        4.952         OK
+TieredSort                  reverse   10000000    256     270.101      37.023        2.155         OK
+
+std::sort                   uniform   10000000    1024    1112.821     8.986         1.000         OK
+DialSort                    uniform   10000000    1024    154.216      64.844        7.216         OK
+DialSort-Parallel           uniform   10000000    1024    114.939      87.003        9.682         OK
+TieredSort                  uniform   10000000    1024    269.314      37.131        4.132         OK
+
+std::sort                   skewed    10000000    1024    1005.882     9.942         1.000         OK
+DialSort                    skewed    10000000    1024    167.621      59.658        6.001         OK
+DialSort-Parallel           skewed    10000000    1024    130.614      76.561        7.701         OK
+TieredSort                  skewed    10000000    1024    305.933      32.687        3.288         OK
+
+std::sort                   sorted    10000000    1024    619.278      16.148        1.000         OK
+DialSort                    sorted    10000000    1024    187.761      53.259        3.298         OK
+DialSort-Parallel           sorted    10000000    1024    118.229      84.582        5.238         OK
+TieredSort                  sorted    10000000    1024    278.195      35.946        2.226         OK
+
+std::sort                   reverse   10000000    1024    562.990      17.762        1.000         OK
+DialSort                    reverse   10000000    1024    147.651      67.727        3.813         OK
+DialSort-Parallel           reverse   10000000    1024    115.328      86.709        4.882         OK
+TieredSort                  reverse   10000000    1024    276.236      36.201        2.038         OK
+
+std::sort                   uniform   10000000    65536   1319.243     7.580         1.000         OK
+DialSort                    uniform   10000000    65536   147.005      68.025        8.974         OK
+DialSort-Parallel           uniform   10000000    65536   126.022      79.351        10.468        OK
+TieredSort                  uniform   10000000    65536   269.485      37.108        4.895         OK
+
+std::sort                   skewed    10000000    65536   1312.874     7.617         1.000         OK
+DialSort                    skewed    10000000    65536   153.170      65.287        8.571         OK
+DialSort-Parallel           skewed    10000000    65536   124.987      80.008        10.504        OK
+TieredSort                  skewed    10000000    65536   279.453      35.784        4.698         OK
+
+std::sort                   sorted    10000000    65536   458.768      21.797        1.000         OK
+DialSort                    sorted    10000000    65536   151.763      65.892        3.023         OK
+DialSort-Parallel           sorted    10000000    65536   121.055      82.607        3.790         OK
+TieredSort                  sorted    10000000    65536   277.350      36.055        1.654         OK
+
+std::sort                   reverse   10000000    65536   486.567      20.552        1.000         OK
+DialSort                    reverse   10000000    65536   158.527      63.081        3.069         OK
+DialSort-Parallel           reverse   10000000    65536   125.349      79.777        3.882         OK
+TieredSort                  reverse   10000000    65536   278.522      35.904        1.747         OK
+
+================================================================
+SUMMARY — DialSort vs TieredSort
+================================================================
+
+Configurations measured                  : 48
+DialSort faster than TieredSort          : 48 / 48
+TieredSort faster than DialSort          : 0 / 48
+Avg ratio DialSort / TieredSort           : 0.595x
+Min ratio DialSort / TieredSort (best DS) : 0.291x
+Max ratio DialSort / TieredSort (worst DS): 0.987x
+
+NOTE: ratio < 1.0 => DialSort is faster than TieredSort
+      ratio > 1.0 => TieredSort is faster than DialSort
+
+DESIGN INSIGHT:
+  TieredSort's two-level structure reduces the active cache footprint
+  per pass from O(U) to O(sqrt(U)). This advantage grows as U increases.
+  For small U (e.g. U=256), DialSort's flat histogram easily fits in L1
+  cache, so the extra bookkeeping of TieredSort is counterproductive.
+  For large U (e.g. U=65536), TieredSort should close the gap or win.
+
+All correctness checks: PASSED
+
+================================================================
+CSV OUTPUT
+================================================================
+algo,dist,N,U,ms_best,Mkeys_per_s,speedup_vs_std,correct
+std::sort,uniform,10000,256,0.853,11.721,1.000,OK
+DialSort,uniform,10000,256,0.137,72.945,6.224,OK
+DialSort-Parallel,uniform,10000,256,0.353,28.317,2.416,OK
+TieredSort,uniform,10000,256,0.344,29.044,2.478,OK
+std::sort,skewed,10000,256,0.601,16.648,1.000,OK
+DialSort,skewed,10000,256,0.132,75.505,4.535,OK
+DialSort-Parallel,skewed,10000,256,0.454,22.036,1.324,OK
+TieredSort,skewed,10000,256,0.242,41.344,2.483,OK
+std::sort,sorted,10000,256,0.287,34.785,1.000,OK
+DialSort,sorted,10000,256,0.170,58.769,1.689,OK
+DialSort-Parallel,sorted,10000,256,0.417,23.974,0.689,OK
+TieredSort,sorted,10000,256,0.248,40.279,1.158,OK
+std::sort,reverse,10000,256,0.322,31.012,1.000,OK
+DialSort,reverse,10000,256,0.143,69.908,2.254,OK
+DialSort-Parallel,reverse,10000,256,0.447,22.391,0.722,OK
+TieredSort,reverse,10000,256,0.266,37.595,1.212,OK
+std::sort,uniform,10000,1024,0.858,11.652,1.000,OK
+DialSort,uniform,10000,1024,0.141,71.169,6.108,OK
+DialSort-Parallel,uniform,10000,1024,0.607,16.483,1.415,OK
+TieredSort,uniform,10000,1024,0.483,20.696,1.776,OK
+std::sort,skewed,10000,1024,0.632,15.825,1.000,OK
+DialSort,skewed,10000,1024,0.152,65.610,4.146,OK
+DialSort-Parallel,skewed,10000,1024,0.648,15.421,0.974,OK
+TieredSort,skewed,10000,1024,0.333,29.993,1.895,OK
+std::sort,sorted,10000,1024,0.327,30.578,1.000,OK
+DialSort,sorted,10000,1024,0.213,46.976,1.536,OK
+DialSort-Parallel,sorted,10000,1024,0.694,14.419,0.472,OK
+TieredSort,sorted,10000,1024,0.389,25.731,0.842,OK
+std::sort,reverse,10000,1024,0.298,33.506,1.000,OK
+DialSort,reverse,10000,1024,0.209,47.883,1.429,OK
+DialSort-Parallel,reverse,10000,1024,0.675,14.815,0.442,OK
+TieredSort,reverse,10000,1024,0.345,29.013,0.866,OK
+std::sort,uniform,10000,65536,0.912,10.963,1.000,OK
+DialSort,uniform,10000,65536,0.620,16.118,1.470,OK
+DialSort-Parallel,uniform,10000,65536,7.694,1.300,0.119,OK
+TieredSort,uniform,10000,65536,0.828,12.078,1.102,OK
+std::sort,skewed,10000,65536,0.955,10.470,1.000,OK
+DialSort,skewed,10000,65536,0.547,18.267,1.745,OK
+DialSort-Parallel,skewed,10000,65536,7.500,1.333,0.127,OK
+TieredSort,skewed,10000,65536,0.555,18.022,1.721,OK
+std::sort,sorted,10000,65536,0.367,27.260,1.000,OK
+DialSort,sorted,10000,65536,0.677,14.775,0.542,OK
+DialSort-Parallel,sorted,10000,65536,7.185,1.392,0.051,OK
+TieredSort,sorted,10000,65536,0.778,12.862,0.472,OK
+std::sort,reverse,10000,65536,0.259,38.625,1.000,OK
+DialSort,reverse,10000,65536,0.757,13.216,0.342,OK
+DialSort-Parallel,reverse,10000,65536,7.590,1.317,0.034,OK
+TieredSort,reverse,10000,65536,0.835,11.975,0.310,OK
+std::sort,uniform,100000,256,8.259,12.107,1.000,OK
+DialSort,uniform,100000,256,1.501,66.601,5.501,OK
+DialSort-Parallel,uniform,100000,256,1.683,59.408,4.907,OK
+TieredSort,uniform,100000,256,2.721,36.758,3.036,OK
+std::sort,skewed,100000,256,7.105,14.074,1.000,OK
+DialSort,skewed,100000,256,1.500,66.670,4.737,OK
+DialSort-Parallel,skewed,100000,256,1.772,56.430,4.009,OK
+TieredSort,skewed,100000,256,2.517,39.734,2.823,OK
+std::sort,sorted,100000,256,3.659,27.331,1.000,OK
+DialSort,sorted,100000,256,1.286,77.744,2.845,OK
+DialSort-Parallel,sorted,100000,256,1.759,56.861,2.080,OK
+TieredSort,sorted,100000,256,2.687,37.218,1.362,OK
+std::sort,reverse,100000,256,3.249,30.781,1.000,OK
+DialSort,reverse,100000,256,1.335,74.920,2.434,OK
+DialSort-Parallel,reverse,100000,256,1.909,52.394,1.702,OK
+TieredSort,reverse,100000,256,2.356,42.441,1.379,OK
+std::sort,uniform,100000,1024,9.089,11.002,1.000,OK
+DialSort,uniform,100000,1024,1.358,73.616,6.691,OK
+DialSort-Parallel,uniform,100000,1024,1.818,54.995,4.999,OK
+TieredSort,uniform,100000,1024,2.242,44.600,4.054,OK
+std::sort,skewed,100000,1024,8.029,12.455,1.000,OK
+DialSort,skewed,100000,1024,1.398,71.519,5.742,OK
+DialSort-Parallel,skewed,100000,1024,1.723,58.039,4.660,OK
+TieredSort,skewed,100000,1024,2.805,35.649,2.862,OK
+std::sort,sorted,100000,1024,3.031,32.988,1.000,OK
+DialSort,sorted,100000,1024,1.338,74.720,2.265,OK
+DialSort-Parallel,sorted,100000,1024,1.938,51.599,1.564,OK
+TieredSort,sorted,100000,1024,2.422,41.287,1.252,OK
+std::sort,reverse,100000,1024,3.242,30.844,1.000,OK
+DialSort,reverse,100000,1024,1.443,69.283,2.246,OK
+DialSort-Parallel,reverse,100000,1024,1.692,59.108,1.916,OK
+TieredSort,reverse,100000,1024,2.316,43.180,1.400,OK
+std::sort,uniform,100000,65536,11.357,8.805,1.000,OK
+DialSort,uniform,100000,65536,2.229,44.870,5.096,OK
+DialSort-Parallel,uniform,100000,65536,9.502,10.524,1.195,OK
+TieredSort,uniform,100000,65536,3.147,31.780,3.609,OK
+std::sort,skewed,100000,65536,9.638,10.376,1.000,OK
+DialSort,skewed,100000,65536,1.900,52.632,5.073,OK
+DialSort-Parallel,skewed,100000,65536,8.839,11.313,1.090,OK
+TieredSort,skewed,100000,65536,3.067,32.600,3.142,OK
+std::sort,sorted,100000,65536,4.313,23.187,1.000,OK
+DialSort,sorted,100000,65536,2.961,33.778,1.457,OK
+DialSort-Parallel,sorted,100000,65536,10.089,9.912,0.427,OK
+TieredSort,sorted,100000,65536,4.087,24.468,1.055,OK
+std::sort,reverse,100000,65536,3.667,27.268,1.000,OK
+DialSort,reverse,100000,65536,3.348,29.867,1.095,OK
+DialSort-Parallel,reverse,100000,65536,9.738,10.270,0.377,OK
+TieredSort,reverse,100000,65536,4.249,23.532,0.863,OK
+std::sort,uniform,1000000,256,94.063,10.631,1.000,OK
+DialSort,uniform,1000000,256,14.262,70.116,6.595,OK
+DialSort-Parallel,uniform,1000000,256,12.230,81.768,7.691,OK
+TieredSort,uniform,1000000,256,26.225,38.131,3.587,OK
+std::sort,skewed,1000000,256,79.301,12.610,1.000,OK
+DialSort,skewed,1000000,256,13.934,71.769,5.691,OK
+DialSort-Parallel,skewed,1000000,256,14.159,70.628,5.601,OK
+TieredSort,skewed,1000000,256,26.457,37.797,2.997,OK
+std::sort,sorted,1000000,256,42.428,23.570,1.000,OK
+DialSort,sorted,1000000,256,13.333,75.002,3.182,OK
+DialSort-Parallel,sorted,1000000,256,12.592,79.416,3.369,OK
+TieredSort,sorted,1000000,256,26.944,37.114,1.575,OK
+std::sort,reverse,1000000,256,44.071,22.691,1.000,OK
+DialSort,reverse,1000000,256,13.987,71.497,3.151,OK
+DialSort-Parallel,reverse,1000000,256,13.017,76.821,3.386,OK
+TieredSort,reverse,1000000,256,24.376,41.025,1.808,OK
+std::sort,uniform,1000000,1024,99.845,10.016,1.000,OK
+DialSort,uniform,1000000,1024,15.334,65.214,6.511,OK
+DialSort-Parallel,uniform,1000000,1024,13.804,72.441,7.233,OK
+TieredSort,uniform,1000000,1024,25.413,39.351,3.929,OK
+std::sort,skewed,1000000,1024,89.248,11.205,1.000,OK
+DialSort,skewed,1000000,1024,14.995,66.690,5.952,OK
+DialSort-Parallel,skewed,1000000,1024,12.383,80.758,7.208,OK
+TieredSort,skewed,1000000,1024,28.239,35.411,3.160,OK
+std::sort,sorted,1000000,1024,41.065,24.352,1.000,OK
+DialSort,sorted,1000000,1024,15.338,65.200,2.677,OK
+DialSort-Parallel,sorted,1000000,1024,11.893,84.083,3.453,OK
+TieredSort,sorted,1000000,1024,25.979,38.492,1.581,OK
+std::sort,reverse,1000000,1024,43.471,23.004,1.000,OK
+DialSort,reverse,1000000,1024,14.055,71.148,3.093,OK
+DialSort-Parallel,reverse,1000000,1024,12.157,82.258,3.576,OK
+TieredSort,reverse,1000000,1024,24.750,40.404,1.756,OK
+std::sort,uniform,1000000,65536,135.016,7.407,1.000,OK
+DialSort,uniform,1000000,65536,15.808,63.257,8.541,OK
+DialSort-Parallel,uniform,1000000,65536,19.132,52.270,7.057,OK
+TieredSort,uniform,1000000,65536,26.287,38.042,5.136,OK
+std::sort,skewed,1000000,65536,114.119,8.763,1.000,OK
+DialSort,skewed,1000000,65536,14.033,71.261,8.132,OK
+DialSort-Parallel,skewed,1000000,65536,20.329,49.190,5.614,OK
+TieredSort,skewed,1000000,65536,28.012,35.699,4.074,OK
+std::sort,sorted,1000000,65536,42.156,23.722,1.000,OK
+DialSort,sorted,1000000,65536,18.981,52.683,2.221,OK
+DialSort-Parallel,sorted,1000000,65536,19.610,50.995,2.150,OK
+TieredSort,sorted,1000000,65536,28.662,34.890,1.471,OK
+std::sort,reverse,1000000,65536,42.472,23.545,1.000,OK
+DialSort,reverse,1000000,65536,20.636,48.460,2.058,OK
+DialSort-Parallel,reverse,1000000,65536,21.084,47.429,2.014,OK
+TieredSort,reverse,1000000,65536,30.112,33.209,1.410,OK
+std::sort,uniform,10000000,256,1089.624,9.177,1.000,OK
+DialSort,uniform,10000000,256,161.143,62.056,6.762,OK
+DialSort-Parallel,uniform,10000000,256,118.514,84.378,9.194,OK
+TieredSort,uniform,10000000,256,258.717,38.652,4.212,OK
+std::sort,skewed,10000000,256,1073.754,9.313,1.000,OK
+DialSort,skewed,10000000,256,169.483,59.003,6.335,OK
+DialSort-Parallel,skewed,10000000,256,134.603,74.293,7.977,OK
+TieredSort,skewed,10000000,256,313.696,31.878,3.423,OK
+std::sort,sorted,10000000,256,571.929,17.485,1.000,OK
+DialSort,sorted,10000000,256,149.594,66.847,3.823,OK
+DialSort-Parallel,sorted,10000000,256,116.885,85.554,4.893,OK
+TieredSort,sorted,10000000,256,276.092,36.220,2.072,OK
+std::sort,reverse,10000000,256,581.982,17.183,1.000,OK
+DialSort,reverse,10000000,256,148.942,67.140,3.907,OK
+DialSort-Parallel,reverse,10000000,256,117.519,85.093,4.952,OK
+TieredSort,reverse,10000000,256,270.101,37.023,2.155,OK
+std::sort,uniform,10000000,1024,1112.821,8.986,1.000,OK
+DialSort,uniform,10000000,1024,154.216,64.844,7.216,OK
+DialSort-Parallel,uniform,10000000,1024,114.939,87.003,9.682,OK
+TieredSort,uniform,10000000,1024,269.314,37.131,4.132,OK
+std::sort,skewed,10000000,1024,1005.882,9.942,1.000,OK
+DialSort,skewed,10000000,1024,167.621,59.658,6.001,OK
+DialSort-Parallel,skewed,10000000,1024,130.614,76.561,7.701,OK
+TieredSort,skewed,10000000,1024,305.933,32.687,3.288,OK
+std::sort,sorted,10000000,1024,619.278,16.148,1.000,OK
+DialSort,sorted,10000000,1024,187.761,53.259,3.298,OK
+DialSort-Parallel,sorted,10000000,1024,118.229,84.582,5.238,OK
+TieredSort,sorted,10000000,1024,278.195,35.946,2.226,OK
+std::sort,reverse,10000000,1024,562.990,17.762,1.000,OK
+DialSort,reverse,10000000,1024,147.651,67.727,3.813,OK
+DialSort-Parallel,reverse,10000000,1024,115.328,86.709,4.882,OK
+TieredSort,reverse,10000000,1024,276.236,36.201,2.038,OK
+std::sort,uniform,10000000,65536,1319.243,7.580,1.000,OK
+DialSort,uniform,10000000,65536,147.005,68.025,8.974,OK
+DialSort-Parallel,uniform,10000000,65536,126.022,79.351,10.468,OK
+TieredSort,uniform,10000000,65536,269.485,37.108,4.895,OK
+std::sort,skewed,10000000,65536,1312.874,7.617,1.000,OK
+DialSort,skewed,10000000,65536,153.170,65.287,8.571,OK
+DialSort-Parallel,skewed,10000000,65536,124.987,80.008,10.504,OK
+TieredSort,skewed,10000000,65536,279.453,35.784,4.698,OK
+std::sort,sorted,10000000,65536,458.768,21.797,1.000,OK
+DialSort,sorted,10000000,65536,151.763,65.892,3.023,OK
+DialSort-Parallel,sorted,10000000,65536,121.055,82.607,3.790,OK
+TieredSort,sorted,10000000,65536,277.350,36.055,1.654,OK
+std::sort,reverse,10000000,65536,486.567,20.552,1.000,OK
+DialSort,reverse,10000000,65536,158.527,63.081,3.069,OK
+DialSort-Parallel,reverse,10000000,65536,125.349,79.777,3.882,OK
+TieredSort,reverse,10000000,65536,278.522,35.904,1.747,OK
