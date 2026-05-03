@@ -6,8 +6,8 @@
 
 ## Team Members
 
-| Name | GitHub |
-|------|--------|
+| Name |
+|------|
 | Matias Zapata Rojas 
 | Samuel Valencia Montoya
 
