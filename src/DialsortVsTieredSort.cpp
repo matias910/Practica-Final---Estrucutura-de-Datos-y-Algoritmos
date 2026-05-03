@@ -1,73 +1,47 @@
-/**
- * DialSort vs. TieredSort — Direct Comparison Benchmark
- * ======================================================
- * Course  : ST0245 - SI001 — Data Structures and Algorithms
- * University: Universidad EAFIT, , Antioquia, Colombia
- * Lecturer: Alexander Narváez Berríox
- *
- * ALTERNATIVE PROPOSAL: TieredSort
- * ---------------------------------
- * TieredSort is a two-level non-comparative integer sorting algorithm.
- * Instead of maintaining a single flat histogram of size U (like DialSort),
- * it partitions the universe [mn, mx] into K coarse "tiers" of equal width,
- * then within each tier maintains a fine-grained local histogram.
- *
- * Analogy: sorting letters by country first, then by city within each country.
- *
- * ALGORITHM OUTLINE
- * -----------------
- *   Pass 1 — Tier classification:
- *     For each key k, compute tier index  t = (k - mn) / tier_width.
- *     Increment the coarse count array C[t]++.
- *     Also store (k - mn) into a per-tier bucket (vector of offsets).
- *
- *   Pass 2 — Intra-tier sort (local histogram):
- *     For each non-empty tier t, build a local histogram H_t of size tier_width,
- *     count each offset, then project back in order.
- *
- *   Pass 3 — Projection:
- *     Walk tiers 0..K-1 in order, emit sorted values from each tier.
- *
- * COMPLEXITY
- * ----------
- *   Time : O(n + U)  — same asymptotic class as DialSort-Counting
- *   Space: O(n + K + max_tier_width)  — avoids the full-U flat array
- *          when K << U, which improves cache locality for large U.
- *
- * KEY DIFFERENCE vs DialSort
- * --------------------------
- *   DialSort uses a single histogram H[0..U-1] — great for small U, but
- *   for large U the array exceeds L2/L3 cache and random writes become slow.
- *   TieredSort's two-level structure keeps the working set smaller per pass,
- *   trading one extra scan for better cache behavior on large U.
- *
- * COMPILE (no external dependencies)
- * -------
- *   g++ -O3 -std=c++17 -pthread -o bench_tiered DialsortVsTieredSort.cpp
- *
- * To skip TieredSort (for testing harness only):
- *   g++ -O3 -std=c++17 -pthread -DSKIP_TIERED -o bench_tiered DialsortVsTieredSort.cpp
- *
- * REPRODUCIBILITY
- * ---------------
- *   Seed    : fixed (20260321)
- *   Timing  : best-of-7 runs, 3 warmup discarded
- *   Correctness: check_sorted() after every run
- */
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <mutex>
 #include <random>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <cmath>
+
+// ── Memory tracking (Linux /proc/self/status) ─────────────────────────────────
+// Returns current RSS (Resident Set Size) in kilobytes.
+// Falls back to 0 on non-Linux platforms.
+static long rss_kb() {
+#if defined(__linux__)
+    std::ifstream f("/proc/self/status");
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.rfind("VmRSS:", 0) == 0) {
+            long kb = 0;
+            std::istringstream ss(line.substr(6));
+            ss >> kb;
+            return kb;
+        }
+    }
+#endif
+    return 0L;
+}
+
+// Measure peak RSS consumed by a single sort call (KB).
+// Takes RSS before and after; returns the delta.
+static long measure_mem_kb(std::function<void()> fn) {
+    const long before = rss_kb();
+    fn();
+    const long after = rss_kb();
+    return std::max(0L, after - before);
+}
 
 // ── Parameters ────────────────────────────────────────────────────────────────
 static constexpr int      WARMUP_ROUNDS  = 3;
@@ -374,6 +348,7 @@ struct Row {
     double      ms      = 0;
     double      mkeys_s = 0;
     double      speedup = 0;
+    long        mem_kb  = 0;   // peak RSS delta during sort (KB)
     bool        correct = false;
     bool        skipped = false;
 };
@@ -414,6 +389,13 @@ static Row run_one(const std::string& algo,
     row.mkeys_s = (base.size() / (best / 1e9)) / 1e6;
     row.speedup = (baseline_ms > 0) ? baseline_ms / row.ms : 1.0;
     row.correct = ok;
+
+    // Memory measurement: one dedicated run to isolate RSS delta
+    {
+        auto tmp = base;
+        row.mem_kb = measure_mem_kb([&](){ fn(tmp); });
+    }
+
     return row;
 }
 
@@ -430,6 +412,7 @@ static void print_table_header() {
               << std::setw(13) << "ms (best)"
               << std::setw(14) << "M keys/s"
               << std::setw(14) << "vs std::sort"
+              << std::setw(10) << "mem KB"
               << "OK\n";
     separator();
 }
@@ -452,13 +435,14 @@ static void print_row(const Row& r) {
               << std::setw(13) << r.ms
               << std::setw(14) << r.mkeys_s
               << std::setw(14) << r.speedup
+              << std::setw(10) << r.mem_kb
               << (r.correct ? "OK" : "*** FAIL ***") << "\n";
 }
 
 static void csv_row(const Row& r) {
     if (r.skipped) {
         std::cout << r.algo << "," << r.dist << "," << r.n << "," << r.U
-                  << ",SKIPPED,SKIPPED,SKIPPED,SKIPPED\n";
+                  << ",SKIPPED,SKIPPED,SKIPPED,SKIPPED,SKIPPED\n";
         return;
     }
     std::cout << r.algo    << ","
@@ -469,6 +453,7 @@ static void csv_row(const Row& r) {
               << r.ms      << ","
               << r.mkeys_s << ","
               << r.speedup << ","
+              << r.mem_kb  << ","
               << (r.correct ? "OK" : "FAIL") << "\n";
 }
 
@@ -622,12 +607,54 @@ int main() {
     std::cout << "================================================================\n";
     std::cout << "CSV OUTPUT\n";
     std::cout << "================================================================\n";
-    std::cout << "algo,dist,N,U,ms_best,Mkeys_per_s,speedup_vs_std,correct\n";
+    std::cout << "algo,dist,N,U,ms_best,Mkeys_per_s,speedup_vs_std,mem_kb,correct\n";
     for (const auto& g : results) {
         csv_row(g.std_sort);
         csv_row(g.dialsort);
         csv_row(g.parallel);
         csv_row(g.tiered);
+    }
+
+    // ── Dataset export ────────────────────────────────────────────────────────
+    // Saves one CSV file per (N, U, distribution) combination into ./datasets/
+    // Directory must exist: mkdir -p datasets
+    std::cout << "\n================================================================\n";
+    std::cout << "DATASET EXPORT\n";
+    std::cout << "================================================================\n";
+    {
+        // Small representative sizes only to keep file count manageable
+        const std::vector<size_t> ds_Ns = {100'000, 1'000'000};
+        const std::vector<int>    ds_Us = {256, 1024, 65536};
+
+        for (size_t dn : ds_Ns) {
+            for (int dU : ds_Us) {
+                for (const auto& dist : dists) {
+                    const uint64_t dseed = static_cast<uint64_t>(SEED)
+                                           ^ (static_cast<uint64_t>(dn) * 1000003ULL)
+                                           ^ (static_cast<uint64_t>(dU) * 7919ULL)
+                                           ^ 0xC0FFEEULL;
+                    const auto data = dist.gen(dn, dU, dseed);
+
+                    std::string fname = "datasets/dataset_n"
+                        + std::to_string(dn) + "_U"
+                        + std::to_string(dU) + "_"
+                        + dist.name + ".csv";
+
+                    std::ofstream f(fname);
+                    if (!f.is_open()) {
+                        std::cerr << "[WARN] Cannot write " << fname
+                                  << " — run: mkdir -p datasets\n";
+                        continue;
+                    }
+                    f << "index,value\n";
+                    for (size_t i = 0; i < data.size(); ++i)
+                        f << i << "," << data[i] << "\n";
+                    f.close();
+                    std::cout << "  Wrote " << fname
+                              << " (" << dn << " records)\n";
+                }
+            }
+        }
     }
 
     return 0;
