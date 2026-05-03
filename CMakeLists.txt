@@ -1,7 +1,11 @@
-cmake_minimum_required(VERSION 4.2)
-project(Practica_Final___Estrucutura_de_Datos_y_Algoritmos)
+cmake_minimum_required(VERSION 3.27)
+project(practica_final)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
-add_executable(Practica_Final___Estrucutura_de_Datos_y_Algoritmos main.cpp
+add_executable(bench_tiered
         src/DialsortVsTieredSort.cpp)
+
+target_compile_options(bench_tiered PRIVATE -O3)
+
+target_link_libraries(bench_tiered PRIVATE pthread)

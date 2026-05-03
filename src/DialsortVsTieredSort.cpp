@@ -3,7 +3,7 @@
  * ======================================================
  * Course  : ST0245 - SI001 — Data Structures and Algorithms
  * University: Universidad EAFIT, , Antioquia, Colombia
- * Lecturer: Alexander Narváez Berrío
+ * Lecturer: Alexander Narváez Berríox
  *
  * ALTERNATIVE PROPOSAL: TieredSort
  * ---------------------------------
