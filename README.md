@@ -8,8 +8,8 @@
 
 | Name |
 |------|
-| Matias Zapata Rojas 
-| Samuel Valencia Montoya
+| Matias Zapata Rojas | 
+| Samuel Valencia Montoya |
 
 ---
 
@@ -18,17 +18,19 @@
 This project implements and experimentally compares **DialSort** — a non-comparative integer sorting algorithm based on the self-indexing principle — against **TieredSort**, a two-level alternative proposed by the team.
 
 ### DialSort
-DialSort builds a flat histogram `H[0..U-1]` in a single ingestion pass over the input, then reconstructs the sorted output by scanning the histogram from index 0 to U. It requires no comparisons and no prefix-sum. Time complexity: **O(n + U)**. Space: **O(U)**.
+DialSort builds a flat histogram `H[0..U-1]` in a single ingestion pass over the input, then reconstructs the sorted output by scanning the histogram from index 0 to U. It requires no comparisons and no prefix-sum.
+
+- **Time:** O(n + U) · **Space:** O(U) · **Non-comparative** · **2 passes**
 
 ### TieredSort (Student Proposal)
 TieredSort is a two-level non-comparative integer sort. It partitions the universe `[mn, mx]` into **K = ⌈√U⌉** coarse tiers of equal width, then within each tier applies a local histogram of size `tier_width = ⌈U/K⌉`.
 
 **Analogy:** sorting mail by city first, then by street within each city.
 
-- **Pass 1 — Scatter:** each key is placed into its coarse tier bucket via integer division. O(n).
-- **Pass 2 — Fine histogram + emit:** for each tier, a local histogram is built and values are emitted in order. O(n + U) total.
-- **Time:** O(n + U) — same asymptotic class as DialSort.
-- **Space:** O(n + K + tier_width) — active working set per pass is O(√U) instead of O(U), improving cache locality for large U.
+- **Pass 1 — Scatter:** each key is placed into its coarse tier via integer division. O(n).
+- **Pass 2 — Fine histogram + emit:** local histogram built per tier, values emitted in order. O(n + U) total.
+- **Time:** O(n + U) · **Space:** O(n + √U) · **Non-comparative** · **3 passes**
+- **Key advantage:** active working set per pass is O(√U) instead of O(U), improving cache locality for large U.
 
 ---
 
@@ -42,6 +44,8 @@ TieredSort is a two-level non-comparative integer sort. It partitions the univer
 │   └── DialsortVsTieredSort.cpp
 ├── simulators/
 │   └── simulator.html
+├── datasets/
+│   └── dataset_n<N>_U<U>_<dist>.csv   (24 files, auto-generated)
 └── results/
     └── results.txt
 ```
@@ -53,7 +57,7 @@ TieredSort is a two-level non-comparative integer sort. It partitions the univer
 ### Requirements
 - GCC 11+ with C++17 support
 - CMake 3.27+
-- pthreads (included in Linux/macOS)
+- pthreads (Linux/macOS)
 
 ### Fedora / RHEL
 ```bash
@@ -71,15 +75,13 @@ cmake -B build
 cmake --build build
 ```
 
-### Run benchmark
+### Run benchmark and generate datasets
 ```bash
-./build/bench_tiered
-```
-
-### Save results to file
-```bash
+mkdir -p datasets
 ./build/bench_tiered > results/results.txt
 ```
+
+The benchmark automatically exports 24 CSV dataset files into `datasets/` during the run.
 
 ---
 
@@ -87,13 +89,13 @@ cmake --build build
 
 Open `simulators/simulator.html` in any modern browser. No installation required.
 
-The simulator shows **DialSort** and **TieredSort** side by side, stepping through each internal phase:
-- Input key injection
-- Histogram / tier scatter
-- Scan wavefront / fine histogram
+Shows **DialSort** and **TieredSort** side by side, stepping through each internal phase:
+- Input key injection / coarse scatter
+- Flat histogram build / fine histogram per tier
+- Scan wavefront / tier-by-tier emit
 - Sorted output
 
-Use **▶ Step** to advance manually or **▶▶ Auto** to animate both algorithms in sync.
+Use **▶ Step** to advance manually or **▶▶ Auto** to animate both in sync.
 
 ---
 
@@ -107,12 +109,11 @@ Use **▶ Step** to advance manually or **▶▶ Auto** to animate both algorith
 | Warmup rounds | 3 (discarded) |
 | Measurement | best of 7 runs |
 | Seed | 20260321 (fixed) |
+| Total configurations | 48 |
 
-Algorithms compared per configuration:
-1. `std::sort` — GCC introsort baseline
-2. `DialSort` — sequential
-3. `DialSort-Parallel` — 8-thread parallel ingestion
-4. `TieredSort` — student proposal
+Algorithms compared: `std::sort` · `DialSort` · `DialSort-Parallel` · `TieredSort`
+
+Memory consumption measured via `/proc/self/status` (VmRSS delta in KB) on Linux.
 
 ---
 
@@ -121,11 +122,16 @@ Algorithms compared per configuration:
 | Metric | Value |
 |--------|-------|
 | Total configurations | 48 |
-| DialSort faster than TieredSort | 45 / 48 |
-| TieredSort faster than DialSort | 3 / 48 |
-| Avg ratio DialSort / TieredSort | 0.613x |
+| DialSort faster than TieredSort | 46 / 48 |
+| TieredSort faster than DialSort | 2 / 48 |
+| Avg ratio DialSort / TieredSort | 0.367x |
+| Max ratio (TieredSort wins) | 2.126x |
+| Correctness checks | PASSED 48/48 |
 
-**Main finding:** DialSort dominates for small and medium U where its flat histogram fits in L1/L2 cache. TieredSort's cache advantage becomes relevant at large U (65,536) with skewed or non-uniform distributions, where it outperforms sequential DialSort in 3 configurations.
+**Main findings:**
+- DialSort dominates for small/medium U where its flat histogram fits in L1/L2 cache. At n=10M, U=1024 it reaches **47x speedup** over std::sort.
+- TieredSort wins in 2 configurations at large U (65,536) confirming the two-level cache hypothesis.
+- DialSort-Parallel pays off at n ≥ 1,000,000; at small n thread overhead dominates.
 
 ---
 
@@ -137,6 +143,17 @@ Algorithms compared per configuration:
 | DialSort | O(n + U) | O(U) | No |
 | DialSort-Parallel | O(n/p + U) | O(p·U) | No |
 | TieredSort | O(n + U) | O(n + √U) | No |
+
+---
+
+## Datasets
+
+The benchmark auto-generates 24 CSV files in `datasets/` covering:
+- **Sizes:** n = 100,000 and n = 1,000,000
+- **Universe sizes:** U = 256, 1,024, 65,536
+- **Distributions:** uniform, skewed, sorted, reverse
+
+Each file has `index,value` columns with the exact input used in the benchmark (same seed).
 
 ---
 
